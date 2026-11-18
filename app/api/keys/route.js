@@ -33,7 +33,8 @@ export async function GET(req){
   if(owner==='password-admin')return bad('Selecione um usuário ou todas as keys',400);
   const filter=owner?'telegram_id=eq.'+owner+'&':'';
   const keys=await db('mc_login_keys?'+filter+'select=id,telegram_id,created_at,revoked_at&order=created_at.desc&limit=500');
-  return NextResponse.json({keys,admin:user.admin,scope:owner?'user':'all'},{headers:{'Cache-Control':'no-store'}});
+  const profile=owner?(await db('mc_users?telegram_id=eq.'+owner+'&select=key_generation_blocked'))[0]:null;
+  return NextResponse.json({keys,admin:user.admin,scope:owner?'user':'all',key_generation_blocked:profile?.key_generation_blocked===true},{headers:{'Cache-Control':'no-store'}});
  }catch(e){console.error('Keys list',String(e));return bad('Erro ao consultar keys; confira a migração 009',503)}
 }
 export async function DELETE(req){
