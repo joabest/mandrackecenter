@@ -1,12 +1,13 @@
 'use client';
 import {useEffect,useMemo,useRef,useState} from 'react';
+import {iconForModule} from '../../../lib/module-icons';
 import {LayoutDashboard,Users,Wallet,ChartNoAxesCombined,Settings,History,PanelLeftClose,PanelLeft,Search,ChevronDown,MoreVertical,Pin,GripVertical,RefreshCw,ArrowUpRight,Shield,LogOut,ExternalLink,Clock3,CheckCircle2,MessageCircle,Menu,Filter,Coins,SlidersHorizontal,KeyRound,MonitorCog,Settings2,FileText,Globe,Database, CreditCard, ShieldCheck, Activity, CircleCheck, Lock, Send, UserRound, Info, Copy} from 'lucide-react';
 
 const groups=[
  {name:'GERAL',items:[{id:'overview',label:'Visão geral',icon:LayoutDashboard},{id:'users',label:'Usuários',icon:Users},{id:'recharges',label:'Recargas',icon:Wallet}]},
- {name:'FERRAMENTAS',items:[{id:'extractor',label:'Extrator',icon:FileText},{id:'formatcc',label:'Formatar dados',icon:FileText},{id:'formatlogin',label:'Formatar login',icon:FileText},{id:'bin',label:'BIN Lookup',icon:Database},{id:'ip',label:'IP Locator',icon:Globe},{id:'geradorbr',label:'Gerador BR',icon:Settings},{id:'geradorgg',label:'Gerador GG',icon:Settings}]},
- {name:'CHECKERS LEGADOS',items:[{id:'zeroauth',label:'ZEROAUTH',icon:ShieldCheck},{id:'preauth',label:'PREAUTH',icon:Shield},{id:'zeroauthv2',label:'ZEROAUTH V2',icon:ShieldCheck},{id:'amazon',label:'Amazon BR',icon:Globe},{id:'drogasil',label:'DrogaSil',icon:Globe}]},
- {name:'ADMINISTRAÇÃO',items:[{id:'modules',label:'Gerenciar módulos',icon:Settings2},{id:'operations',label:'Central de Operações',icon:MonitorCog},{id:'telegram',label:'Bot Telegram',icon:Send},{id:'settings',label:'Configurações',icon:Settings},{id:'legacy',label:'Painel original completo',icon:SlidersHorizontal}]}
+ {name:'FERRAMENTAS',items:[{id:'extractor',label:'Extrator',icon:iconForModule('extractor')},{id:'formatcc',label:'Formatar dados',icon:iconForModule('formatcc')},{id:'formatlogin',label:'Formatar login',icon:iconForModule('formatlogin')},{id:'bin',label:'BIN Lookup',icon:iconForModule('bin')},{id:'ip',label:'IP Locator',icon:iconForModule('ip')},{id:'geradorbr',label:'Gerador BR',icon:iconForModule('geradorbr')},{id:'geradorgg',label:'Gerador GG',icon:iconForModule('geradorgg')}]},
+ {name:'CHECKERS LEGADOS',items:[{id:'zeroauth',label:'ZEROAUTH',icon:iconForModule('zeroauth')},{id:'preauth',label:'PREAUTH',icon:iconForModule('preauth')},{id:'zeroauthv2',label:'ZEROAUTH V2',icon:iconForModule('zeroauthv2')},{id:'amazon',label:'Amazon BR',icon:iconForModule('amazon')},{id:'drogasil',label:'DrogaSil',icon:iconForModule('drogasil')}]},
+ {name:'ADMINISTRAÇÃO',items:[{id:'modules',label:'Gerenciar módulos',icon:Settings2},{id:'operations',label:'Central de Operações',icon:MonitorCog},{id:'telegram',label:'Bot Telegram',icon:iconForModule('telegram')},{id:'settings',label:'Configurações',icon:Settings},{id:'legacy',label:'Painel original completo',icon:SlidersHorizontal}]}
 ];
 const initialOrder=Object.fromEntries(groups.map(g=>[g.name,g.items.map(x=>x.id)]));
 const fmt=n=>Number(n||0).toLocaleString('pt-BR');
