@@ -14,7 +14,7 @@ const adminMenu=()=>({inline_keyboard:[
  [{text:'🔧 Manutenção',callback_data:'admin_maintenance'},{text:'📨 Mensagens',callback_data:'admin_inbox'}],
  [{text:'📣 Avisos',callback_data:'admin_announcements'}],
  [{text:'📈 Central web',url:'https://mandracke.vercel.app/admin/central'}],
- [{text:'🌐 Abrir painel administrativo',url:'https://mandracke.vercel.app/login'}],
+ [{text:'🌐 Abrir painel administrativo',url:'https://mandracke.vercel.app/login?admin=1'}],
  [{text:'⬅️ Menu principal',callback_data:'menu'}]
 ]});
 async function adminAction(action,chatId,id){
