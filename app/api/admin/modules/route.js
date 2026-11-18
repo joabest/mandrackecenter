@@ -1,4 +1,6 @@
 import {NextResponse} from 'next/server';
+import {cookies} from 'next/headers';
+import {verifyMember} from '../../../../lib/member-session';
 import {db} from '../../../../lib/members';
 import {moduleIds,modules} from '../../../../lib/modules';
 export const runtime='nodejs';
@@ -10,6 +12,10 @@ export async function GET(){
  }catch(e){console.error('Admin modules',String(e));return NextResponse.json({error:'Falha ao carregar módulos'},{status:503})}
 }
 export async function PATCH(req){
+ const session=await verifyMember((await cookies()).get('mandracke_member')?.value,process.env.SESSION_SECRET);
+ if(!process.env.ADMIN_TELEGRAM_ID||!session||String(session.id)!==String(process.env.ADMIN_TELEGRAM_ID))return NextResponse.json({error:'Apenas o proprietário da conta Telegram pode alterar módulos'},{status:403});
+ const verified=await db('mc_users?telegram_id=eq.'+session.id+'&select=enabled,session_version');
+ if(verified.length!==1||verified[0].enabled!==true||Number(verified[0].session_version)!==session.version)return NextResponse.json({error:'Sessão inválida'},{status:403});
  let payload;try{payload=await req.json()}catch{return NextResponse.json({error:'JSON inválido'},{status:400})}
  const {module_id,enabled,off_message}=payload||{};
  if(!moduleIds.has(module_id)||typeof enabled!=='boolean'||typeof off_message!=='string'||off_message.trim().length<6||off_message.length>280)return NextResponse.json({error:'Estado ou aviso inválido'},{status:400});
