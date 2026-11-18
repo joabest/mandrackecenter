@@ -426,7 +426,7 @@ export async function POST(req){
     if(!existing)await issueKey(chatId,id,from);
     await db('mc_users?telegram_id=eq.'+id,{method:'PATCH',body:{last_bot_seen_at:new Date().toISOString()},prefer:'return=minimal'});
     await trackEvent(id,'bot_start');
-    if(existing)await intro(chatId,from?.first_name);
+    if(/^\/start(?:@\w+)?\s+recarga(?:\s|$)/i.test(text.trim()))await rechargeMenu(chatId);
     else await intro(chatId,from?.first_name);
    }else if(tidyCommand(text)==='/pararavisos'){
     await subscribe(id,false);await chat(chatId,'🔕 Você não receberá novos avisos da central. Para voltar a receber, envie /receberavisos.');
