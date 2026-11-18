@@ -84,19 +84,23 @@ async function adminAction(action,chatId,id){
   const u=(await db('mc_users?telegram_id=eq.'+uid+'&select=telegram_id,first_name,username,credits,enabled'))[0];
   if(!u||!u.enabled)return chat(chatId,'Usuário não encontrado ou desativado.');
   if(Number(u.credits)+delta<0)return chat(chatId,'Saldo insuficiente para este débito.');
+  const created=await db('mc_bot_credit_actions',{method:'POST',body:{telegram_id:uid,delta},prefer:'return=representation'});
+  const actionId=created?.[0]?.id;
+  if(!actionId)throw Error('Falha ao criar confirmação');
   return chat(chatId,'⚠️ CONFIRMAR AJUSTE\n\nUsuário: '+(u.first_name||u.username||uid)+'\nID: '+uid+'\nOperação: '+(delta>0?'+':'')+delta+' créditos\nSaldo atual: '+u.credits+'\nNovo saldo estimado: '+(Number(u.credits)+delta)+'\n\nConfirma a operação?',{reply_markup:{inline_keyboard:[
-   [{text:'✅ Confirmar alteração',callback_data:'admin_credit_apply_'+uid+'_'+delta}],
+   [{text:'✅ Confirmar alteração',callback_data:'admin_credit_apply_'+actionId}],
    [{text:'❌ Cancelar',callback_data:'admin_user_'+uid}]
   ]}});
  }
- const apply=/^admin_credit_apply_(\d{4,20})_(-?\d{1,5})$/.exec(action);
+ const apply=/^admin_credit_apply_([0-9a-f-]{36})$/i.exec(action);
  if(apply){
-  const uid=apply[1],delta=Number(apply[2]);
-  if(!Number.isSafeInteger(delta)||delta===0||Math.abs(delta)>5000)return chat(chatId,'Quantidade inválida.');
-  // Callback confirms an adjustment. Avoid replay by removing the confirmation button before mutating.
-  const applied=await db('rpc/mc_adjust_credits',{method:'POST',body:{p_telegram_id:uid,p_delta:delta}});
-  await chat(chatId,'✅ SALDO ATUALIZADO\n\nUsuário ID: '+uid+'\nAjuste: '+(delta>0?'+':'')+delta+'\nSaldo atual: '+applied+' créditos.',{reply_markup:{inline_keyboard:[[{text:'👤 Ver usuário',callback_data:'admin_user_'+uid}],[{text:'⬅️ Admin',callback_data:'admin'}]]}});
-  try{await chat(Number(uid),'💳 CRÉDITOS ATUALIZADOS\n\nSeu saldo foi ajustado pelo administrador.\nAlteração: '+(delta>0?'+':'')+delta+' créditos\nNovo saldo: '+applied+' créditos.')}catch(e){console.warn('Credit notification unavailable')}
+  // Single-use atomic action prevents repeated clicks from granting duplicate credits.
+  const out=await db('rpc/mc_apply_bot_credit_action',{method:'POST',body:{p_action_id:apply[1]}});
+  const result=Array.isArray(out)?out[0]:null;
+  if(!result)return chat(chatId,'Confirmação expirada ou já utilizada.');
+  const uid=String(result.telegram_id),delta=Number(result.amount),balance=result.new_balance;
+  await chat(chatId,'✅ SALDO ATUALIZADO\n\nUsuário ID: '+uid+'\nAjuste: '+(delta>0?'+':'')+delta+'\nSaldo atual: '+balance+' créditos.',{reply_markup:{inline_keyboard:[[{text:'👤 Ver usuário',callback_data:'admin_user_'+uid}],[{text:'⬅️ Admin',callback_data:'admin'}]]}});
+  try{await chat(Number(uid),'💳 CRÉDITOS ATUALIZADOS\n\nSeu saldo foi ajustado pelo administrador.\nAlteração: '+(delta>0?'+':'')+delta+' créditos\nNovo saldo: '+balance+' créditos.')}catch(e){console.warn('Credit notification unavailable')}
   return;
  }
  if(action==='admin_recharges'){
