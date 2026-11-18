@@ -15,7 +15,7 @@ export default function Login(){
  return <main className="auth"><div className="login"><div className="logo">⬡ <span>MANDRACKE <b>CENTER</b></span></div><div className="eyebrow" style={{marginTop:38}}>ACESSO PROTEGIDO</div><h1>{mode==='admin'?'Administração':'Entrar com Telegram'}</h1>
  <div className="login-tabs"><button type="button" className={mode==='telegram'?'on':''} onClick={()=>{setMode('telegram');setError('')}}>Key do Telegram</button><button type="button" className={mode==='admin'?'on':''} onClick={()=>{setMode('admin');setError('')}}>Administrador</button></div>
  {mode==='telegram'?<>
- <p>Abra o bot vinculado à sua conta Telegram, envie <b>/start</b> e copie a key de uso único que ele fornecer.</p>
+ <p>Abra o bot vinculado à sua conta Telegram, envie <b>/start</b> e copie a key permanente que ele fornecer.</p>
  {config.bot?<a className="botlink" href={'https://t.me/'+config.bot+'?start=login'} target="_blank" rel="noopener noreferrer">Abrir bot @{config.bot} ↗</a>:<p className="error">Bot ainda não configurado pelo administrador.</p>}
  <form onSubmit={submit}><label htmlFor="key">KEY DE ACESSO</label><input id="key" type="text" required autoComplete="off" spellCheck="false" value={key} onChange={e=>setKey(e.target.value)} placeholder="Cole a key recebida no Telegram"/><button disabled={busy}>{busy?'Validando key...':'Entrar na minha conta →'}</button></form>
  </>:<>
@@ -24,6 +24,6 @@ export default function Login(){
  </>}
  {error&&<div role="alert" className="error">{error}</div>}
  <div style={{display:'flex',justifyContent:'space-between',gap:12,marginTop:22}}><a href="https://t.me/mandracke" target="_blank" rel="noopener noreferrer" style={{color:'#bc9ff1'}}>Suporte</a>{config.group&&<a href={config.group} target="_blank" rel="noopener noreferrer" style={{color:'#bc9ff1'}}>Grupo da central</a>}</div>
- <small style={{display:'block',marginTop:16}}>Nunca compartilhe sua key. O saldo é consultado no servidor.</small>
+ <small style={{display:'block',marginTop:16}}>Sua key permanece válida até ser substituída ou revogada. Nunca a compartilhe. O saldo é consultado no servidor.</small>
  </div></main>
 }
