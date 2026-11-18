@@ -24,7 +24,8 @@ export async function POST(req){
   const user=JSON.parse(params.get('user')||'null');
   if(!user||!Number.isSafeInteger(user.id)||user.id<=0)throw Error('BAD_USER');
   const rows=await db('mc_users?telegram_id=eq.'+user.id+'&select=telegram_id,enabled');
-  if(!rows.length||rows[0].enabled===false)return NextResponse.json({error:'Conta não ativada. Gere sua key no bot primeiro.'},{status:403});
+  const keys=await db('mc_login_keys?telegram_id=eq.'+user.id+'&revoked_at=is.null&select=id&limit=1');
+  if(!rows.length||rows[0].enabled===false||!keys.length)return NextResponse.json({error:'Conta não ativada. Gere sua key no bot primeiro.'},{status:403});
   await db('rpc/mc_refresh_admin_allowance',{method:'POST',body:{p_telegram_id:user.id}});
   const cookie=await userCookie(user.id);
   try{await db('mc_usage_events',{method:'POST',body:{telegram_id:user.id,event_type:'member_login'},prefer:'return=minimal'})}catch{}
