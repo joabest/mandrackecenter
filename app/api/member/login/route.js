@@ -10,6 +10,7 @@ export async function POST(req){
   if(!Array.isArray(out)||!out.length)return NextResponse.json({error:'Key inválida, revogada ou conta desativada.'},{status:401});
   const tid=String(out[0].telegram_id);
   if(!/^\d+$/.test(tid))throw Error('Invalid Telegram ID');
+  try{await db('mc_usage_events',{method:'POST',body:{telegram_id:tid,event_type:'member_login'},prefer:'return=minimal'})}catch{};
   const res=NextResponse.json({ok:true,plan:out[0].plan});
   res.cookies.set('mandracke_member',await userCookie(tid),{path:'/',httpOnly:true,secure:process.env.NODE_ENV==='production',sameSite:'lax',maxAge:28800});
   return res;
