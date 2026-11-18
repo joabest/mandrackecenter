@@ -8,12 +8,12 @@ const memberSource=readFileSync(new URL('../app/member/page.js',import.meta.url)
 const adminSource=readFileSync(new URL('../app/admin/dashboard/page.js',import.meta.url),'utf8');
 
 test('every registered module has an explicit semantic icon',()=>{
- const ids=[...iconsSource.matchAll(/^\s*([a-z][a-z0-9]*):[A-Z][A-Za-z0-9]+,/gm)].map(m=>m[1]);
+ const ids=[...iconsSource.matchAll(/^\s*([a-z][a-z0-9]*):[A-Z][A-Za-z0-9]+,?\s*$/gm)].map(m=>m[1]);
  assert.equal(ids.length,modules.length);
  assert.deepEqual([...new Set(ids)].sort(),modules.map(m=>m.id).sort());
 });
 test('tool icons are never the generic Settings icon',()=>{
- const mapping=Object.fromEntries([...iconsSource.matchAll(/^\s*([a-z][a-z0-9]*):([A-Z][A-Za-z0-9]+),/gm)].map(m=>[m[1],m[2]]));
+ const mapping=Object.fromEntries([...iconsSource.matchAll(/^\s*([a-z][a-z0-9]*):([A-Z][A-Za-z0-9]+),?\s*$/gm)].map(m=>[m[1],m[2]]));
  for(const m of modules.filter(x=>['Ferramentas','Checkers legados'].includes(x.group))){
   assert.notEqual(mapping[m.id],'Settings',m.id);
   assert.notEqual(mapping[m.id],'Boxes',m.id);
