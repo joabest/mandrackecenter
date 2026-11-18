@@ -252,6 +252,22 @@ export async function POST(req){
     await subscribe(id,false);await chat(chatId,'🔕 Você não receberá novos avisos da central. Para voltar a receber, envie /receberavisos.');
    }else if(tidyCommand(text)==='/receberavisos'){
     await subscribe(id,true);await chat(chatId,'🔔 Avisos da central ativados.');
+   }else if(tidyCommand(text)==='/responder'){
+    if(!isAdmin(id))return NextResponse.json({error:'Não autorizado'},{status:403});
+    const m=/^\/responder\s+(\d{4,20})\s+([\s\S]{1,1500})$/.exec(text.trim());
+    if(!m)await chat(chatId,'Uso: /responder TELEGRAM_ID Sua mensagem (até 1500 caracteres).');
+    else{
+     const targetId=m[1],response=m[2].trim();
+     if(response.length<1||response.length>1500)await chat(chatId,'Mensagem inválida.');
+     else{
+      const user=await getUser(Number(targetId));
+      if(!user)await chat(chatId,'Usuário não encontrado na central.');
+      else{
+       await chat(Number(targetId),'📨 RESPOSTA DO SUPORTE MANDRACKE CENTER\n\n'+response);
+       await chat(chatId,'✅ Resposta enviada ao Telegram ID '+targetId);
+      }
+     }
+    }
    }else if(tidyCommand(text)==='/avisar'){
     if(!isAdmin(id))return NextResponse.json({error:'Não autorizado'},{status:403});
     const notice=text.slice(text.indexOf(' ')+1).trim();
@@ -277,6 +293,9 @@ export async function POST(req){
       const body=String(msg.text||'').trim().slice(0,2000);
       if(body){
        await db('mc_inbox',{method:'POST',body:{telegram_id:id,message_text:body},prefer:'return=minimal'});
+       if(process.env.ADMIN_TELEGRAM_ID && String(id)!==process.env.ADMIN_TELEGRAM_ID){
+        try{await chat(process.env.ADMIN_TELEGRAM_ID,'📨 NOVA MENSAGEM NA CENTRAL\n\nTelegram ID: '+id+'\n'+body.slice(0,1000)+'\n\nResponda com: /responder '+id+' SUA_RESPOSTA')}catch(e){console.warn('Admin notification delivery failed')}
+       }
        await chat(chatId,'📨 Sua mensagem foi recebida pela central. O administrador poderá visualizá-la no painel. Para consultar os recursos, use /start.');
       }else await intro(chatId,from?.first_name);
     }
