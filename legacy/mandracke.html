@@ -499,7 +499,10 @@ document.getElementById('binSearch').oninput=e=>renderBins(e.target.value);
   for(const n of document.querySelectorAll('.menu-item[data-page]')){
    const c=config.get(n.dataset.page);n.classList.toggle('mc-module-disabled',c?.enabled===false);
    const pill=n.querySelector('.pill');
-   if(c?.enabled===false&&pill){pill.textContent='OFF'}
+   if(pill){
+    if(!pill.dataset.originalStatus)pill.dataset.originalStatus=pill.textContent;
+    pill.textContent=c?.enabled===false?'OFF':pill.dataset.originalStatus;
+   }
   }
  }
  async function reload(){
