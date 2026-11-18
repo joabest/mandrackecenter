@@ -5,6 +5,39 @@ export const runtime='nodejs';
 const LOGIN='https://mandracke.vercel.app/login';
 const SUPPORT='https://t.me/mandracke';
 const BOT='https://t.me/mandrackecenterkeybot';
+const isAdmin=id=>Boolean(process.env.ADMIN_TELEGRAM_ID)&&String(id)===process.env.ADMIN_TELEGRAM_ID;
+const adminMenu=()=>({inline_keyboard:[
+ [{text:'📊 Resumo administrativo',callback_data:'admin_summary'},{text:'👥 Usuários',callback_data:'admin_users'}],
+ [{text:'💳 Recargas pendentes',callback_data:'admin_recharges'}],
+ [{text:'🌐 Abrir painel administrativo',url:'https://mandracke.vercel.app/login'}],
+ [{text:'⬅️ Menu principal',callback_data:'menu'}]
+]});
+async function adminAction(action,chatId,id){
+ if(!isAdmin(id)){await chat(chatId,'⛔ Acesso restrito ao administrador.');return}
+ if(action==='admin'){
+  return chat(chatId,'🛡 ADMINISTRADOR — MANDRACKE CENTER\n\nAcesso reconhecido pelo seu Telegram ID. Seu plano e créditos como usuário não são alterados por este reconhecimento.\n\nEscolha abaixo:',{reply_markup:adminMenu()});
+ }
+ if(action==='admin_summary'){
+  const [users,recharges]=await Promise.all([
+   db('mc_users?select=telegram_id,plan,promo_pro_until'),
+   db('mc_recharges?select=status')
+  ]);
+  const pending=recharges.filter(x=>x.status==='pending').length;
+  const promos=users.filter(x=>x.plan==='FREE'&&x.promo_pro_until&&new Date(x.promo_pro_until)>new Date()).length;
+  return chat(chatId,'📊 RESUMO ADMINISTRATIVO\n\nUsuários: '+users.length+'\nPRO promocionais ativos: '+promos+'\nRecargas pendentes: '+pending,{reply_markup:adminMenu()});
+ }
+ if(action==='admin_users'){
+  const users=await db('mc_users?select=telegram_id,username,first_name,plan,credits,enabled&order=created_at.desc&limit=15');
+  const lines=users.map(x=>'• '+(x.first_name||x.username||'Usuário')+' — ID '+x.telegram_id+' — '+x.plan+' — '+x.credits+' créditos'+(x.enabled?'':' (bloqueado)'));
+  return chat(chatId,'👥 ÚLTIMOS USUÁRIOS\n\n'+(lines.join('\n')||'Nenhum usuário registrado.')+'\n\nPara editar plano e créditos, use o painel administrativo.',{reply_markup:adminMenu()});
+ }
+ if(action==='admin_recharges'){
+  const rows=await db('mc_recharges?status=eq.pending&select=id,telegram_id,credits_requested,created_at&order=created_at.asc&limit=12');
+  if(!rows.length)return chat(chatId,'✅ Nenhuma recarga pendente.',{reply_markup:adminMenu()});
+  const text=rows.map(x=>'• ID Telegram '+x.telegram_id+': '+x.credits_requested+' créditos').join('\n');
+  return chat(chatId,'💳 RECARGAS PENDENTES\n\n'+text+'\n\nA aprovação e o crédito devem ser feitos pelo painel administrativo.',{reply_markup:adminMenu()});
+ }
+}
 
 const menu=[
  [{text:'🔑 Gerar Key',callback_data:'key'},{text:'👤 Minha Conta',callback_data:'account'}],
@@ -37,7 +70,7 @@ async function getUser(id){
 async function intro(id,name){
  const u=await getUser(id);
  const state=u?'Seu cadastro já está ativo.':'Use “🔑 Gerar Key” para ativar sua conta.';
- await chat(id,'🟣 MANDRACKE CENTER\n\nOlá, '+(name||'usuário')+'! Bem-vindo à central.\n'+state+'\n\nSelecione uma opção abaixo:',{reply_markup:keyboard()});
+ await chat(id,'🟣 MANDRACKE CENTER\n\nOlá, '+(name||'usuário')+'! Bem-vindo à central.\n'+state+'\n\nSelecione uma opção abaixo:',{reply_markup:keyboard(isAdmin(id)?[[{text:'🛡 Administração',callback_data:'admin'}]]:[])});
 }
 async function issueKey(chatId,telegramId,from){
  const key=generateKey();
@@ -132,6 +165,7 @@ async function disconnect(chatId,id){
  await chat(chatId,'🛡 DISPOSITIVOS DESCONECTADOS\n\nAs sessões anteriores do painel foram invalidadas. Sua key permanente continua válida e pode ser usada para entrar novamente.',{reply_markup:keyboard()});
 }
 async function mainAction(action,chatId,id,from){
+ if(action==='admin'||action.startsWith('admin_'))return adminAction(action,chatId,id);
  switch(action){
   case 'menu':return intro(chatId,from?.first_name);
   case 'key':return issueKey(chatId,id,from);
@@ -157,7 +191,7 @@ async function mainAction(action,chatId,id,from){
 }
 function asAction(text){
  const cmd=tidyCommand(text);
- return ({'/start':'start','/menu':'menu','/key':'key','/gerarkey':'key','/conta':'account','/creditos':'credits','/limites':'limits','/historico':'history','/recarga':'recharge','/grupo':'group','/suporte':'support','/nome':'name','/foto':'photo','/dispositivos':'disconnect','/help':'menu'})[cmd]||null;
+ return ({'/start':'start','/menu':'menu','/key':'key','/gerarkey':'key','/conta':'account','/creditos':'credits','/limites':'limits','/historico':'history','/recarga':'recharge','/grupo':'group','/suporte':'support','/nome':'name','/foto':'photo','/dispositivos':'disconnect','/help':'menu','/admin':'admin'})[cmd]||null;
 }
 export async function POST(req){
  const secret=process.env.TELEGRAM_WEBHOOK_SECRET;
