@@ -152,6 +152,10 @@ export default function Member(){
        <a href="/admin/dashboard" className="rounded-xl bg-[#765099] px-4 py-3 text-xs font-semibold text-white">Abrir painel administrativo</a>
        <a href="/admin/modules" className="rounded-xl border border-[#8261a0] px-4 py-3 text-xs text-[#e8d3f7]">Gerenciar módulos</a>
      </div>}
+     {!isAdmin&&Number(u.credits)<=0&&<div role="status" className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[#775b3a] bg-[#2b221c] p-4">
+       <div><b className="text-sm text-[#f4d1a1]">Saldo insuficiente</b><p className="mt-1 text-xs text-[#d2bda6]">Você pode visualizar todos os módulos. Para executar ferramentas é necessário ter créditos aprovados em sua conta.</p></div>
+       <button type="button" onClick={()=>move('recharges')} className="!bg-[#73513d] !px-4 !py-3 text-xs">Solicitar créditos</button>
+     </div>}
      <div className="flex flex-wrap items-end justify-between gap-4"><div><div className="mb-2 text-[11px] font-semibold uppercase tracking-[.19em] text-[#a480c8]">MANDRACKE / {view==='dashboard'?'Visão geral':view.toUpperCase()}</div><h1 className="!m-0 text-[28px] font-semibold tracking-tight text-[#f8f4fc] md:text-3xl">{view==='dashboard'?'Seu painel':navigation.flatMap(n=>n.items).find(n=>n.id===view)?.label}</h1><p className="mt-2 text-sm text-[#8f8899]">Bem-vindo, {u.first_name||u.username||'usuário'} · Conta vinculada ao Telegram</p></div><div className="flex items-center gap-2 rounded-full border border-[#3d3843] bg-[#1b1920] px-3 py-2 text-[11px] text-[#c2b9ca]"><span className="h-2 w-2 rounded-full bg-emerald-400"/>Conta ativa</div></div>
      {['dashboard','credits'].includes(view)&&<div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
        <Tile title="Créditos disponíveis" value={money(u.credits)} icon={Wallet} detail="Saldo consultado no Supabase"/>
@@ -169,7 +173,7 @@ export default function Member(){
    <div className="grid grid-cols-1 gap-3 p-5 sm:grid-cols-2 lg:grid-cols-3">
     {Object.entries(moduleStatuses).map(([id,status])=>{
      const names={extractor:'Extrator',formatcc:'Formatar dados',formatlogin:'Formatar login',bin:'BIN Lookup',ip:'IP Locator',geradorbr:'Gerador BR',geradorgg:'Gerador GG',zeroauth:'ZEROAUTH',preauth:'PREAUTH',zeroauthv2:'ZEROAUTH V2',amazon:'Amazon BR',drogasil:'DrogaSil'};
-     return <div key={id} className="rounded-xl border border-[#40334b] bg-[#231d2a] p-4"><div className="flex items-center justify-between gap-2"><span className="text-sm font-medium">{names[id]||id}</span><span className={'rounded px-2 py-1 text-[10px] '+(status.enabled?'bg-emerald-900/30 text-emerald-300':'bg-rose-900/40 text-rose-300')}>{status.enabled?'ON':'OFF'}</span></div>
+     return <div key={id} className="rounded-xl border border-[#40334b] bg-[#231d2a] p-4"><div className="flex items-center justify-between gap-2"><span className="text-sm font-medium">{names[id]||id}</span><span className={'rounded px-2 py-1 text-[10px] '+(status.enabled?'bg-emerald-900/30 text-emerald-300':'bg-rose-900/40 text-rose-300')}>{status.access==='no_credits'?'SEM CRÉDITOS':status.access==='admin_only'?'ADMIN':status.access==='not_integrated'?'EM PREPARAÇÃO':status.enabled?'ON':'OFF'}</span></div>
      <p className="mt-3 text-xs text-[#9e91ac]">{status.access==='no_credits'?'Visível para conhecer. Bloqueado por falta de créditos.':status.access==='admin_only'?'Acesso exclusivo do administrador.':status.access==='not_integrated'?'Módulo visível; execução ainda não integrada para membros.':status.access==='off'?status.off_message:'Disponível para administração.'}</p>
      <button type="button" className="mt-3 !border !border-[#5c4670] !bg-[#34273e] !px-3 !py-2 text-xs" onClick={()=>move('module:'+id)}>{status.access==='no_credits'?'Ver requisitos':status.access==='available'?'Abrir módulo':'Ver detalhes'}</button>
      
