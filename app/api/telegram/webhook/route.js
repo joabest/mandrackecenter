@@ -10,7 +10,7 @@ const BOT='https://t.me/mandrackecenterkeybot';
 const isAdmin=id=>Boolean(process.env.ADMIN_TELEGRAM_ID)&&String(id)===process.env.ADMIN_TELEGRAM_ID;
 const adminMenu=()=>({inline_keyboard:[
  [{text:'📊 Resumo administrativo',callback_data:'admin_summary'},{text:'👥 Usuários',callback_data:'admin_users'}],
- [{text:'💳 Recargas pendentes',callback_data:'admin_recharges'}],
+ [{text:'💳 Créditos dos usuários',callback_data:'admin_credits'},{text:'💳 Recargas pendentes',callback_data:'admin_recharges'}],
  [{text:'🔧 Manutenção',callback_data:'admin_maintenance'},{text:'📨 Mensagens',callback_data:'admin_inbox'}],
  [{text:'📣 Avisos',callback_data:'admin_announcements'}],
  [{text:'⚙️ Módulos ON / OFF',url:'https://mandracke.vercel.app/admin/modules'}],
@@ -60,12 +60,74 @@ async function adminAction(action,chatId,id){
  if(action==='admin_announcements'){
   return chat(chatId,'📣 AVISOS AOS USUÁRIOS\n\nAbra a Central web para criar e enviar avisos em lotes, ou use /avisar seguido do texto para registrar um novo aviso.\n\nExemplo: /avisar Atualização da plataforma às 20h.\n\nSomente usuários inscritos que iniciaram o bot receberão avisos.',{reply_markup:adminMenu()});
  }
- if(action==='admin_recharges'){
-  const rows=await db('mc_recharges?status=eq.pending&select=id,telegram_id,credits_requested,created_at&order=created_at.asc&limit=12');
-  if(!rows.length)return chat(chatId,'✅ Nenhuma recarga pendente.',{reply_markup:adminMenu()});
-  const text=rows.map(x=>'• ID Telegram '+x.telegram_id+': '+x.credits_requested+' créditos').join('\n');
-  return chat(chatId,'💳 RECARGAS PENDENTES\n\n'+text+'\n\nA aprovação e o crédito devem ser feitos pelo painel administrativo.',{reply_markup:adminMenu()});
+
+ if(action==='admin_credits'){
+  const users=await db('mc_users?select=telegram_id,username,first_name,credits,enabled&order=created_at.desc&limit=15');
+  const rows=users.map(u=>[{text:(u.first_name||u.username||'Usuário').slice(0,18)+' · '+u.credits+' créditos',callback_data:'admin_user_'+u.telegram_id}]);
+  return chat(chatId,'💳 CRÉDITOS — ADMIN\n\nSelecione o usuário cadastrado. Todas as alterações exigem confirmação.',{reply_markup:{inline_keyboard:[...rows,[{text:'⬅️ Administração',callback_data:'admin'}]]}});
  }
+ const userMatch=/^admin_user_(\d{4,20})$/.exec(action);
+ if(userMatch){
+  const uid=userMatch[1],users=await db('mc_users?telegram_id=eq.'+uid+'&select=telegram_id,username,first_name,credits,enabled');
+  if(!users.length)return chat(chatId,'Usuário não encontrado.');
+  const u=users[0];
+  return chat(chatId,'👤 GERENCIAR CRÉDITOS\n\nUsuário: '+(u.first_name||u.username||'Sem nome')+'\nID: '+uid+'\nSaldo atual: '+u.credits+' créditos\n\nSelecione uma operação:',{reply_markup:{inline_keyboard:[
+   [{text:'➕ Adicionar 100',callback_data:'admin_credit_preview_'+uid+'_100'},{text:'➕ Adicionar 500',callback_data:'admin_credit_preview_'+uid+'_500'}],
+   [{text:'➕ Adicionar 1000',callback_data:'admin_credit_preview_'+uid+'_1000'},{text:'➖ Remover 100',callback_data:'admin_credit_preview_'+uid+'_-100'}],
+   [{text:'⬅️ Usuários',callback_data:'admin_credits'}]
+  ]}});
+ }
+ const preview=/^admin_credit_preview_(\d{4,20})_(-?\d{1,5})$/.exec(action);
+ if(preview){
+  const uid=preview[1],delta=Number(preview[2]);
+  if(!Number.isSafeInteger(delta)||delta===0||Math.abs(delta)>5000)return chat(chatId,'Quantidade inválida.');
+  const u=(await db('mc_users?telegram_id=eq.'+uid+'&select=telegram_id,first_name,username,credits,enabled'))[0];
+  if(!u||!u.enabled)return chat(chatId,'Usuário não encontrado ou desativado.');
+  if(Number(u.credits)+delta<0)return chat(chatId,'Saldo insuficiente para este débito.');
+  return chat(chatId,'⚠️ CONFIRMAR AJUSTE\n\nUsuário: '+(u.first_name||u.username||uid)+'\nID: '+uid+'\nOperação: '+(delta>0?'+':'')+delta+' créditos\nSaldo atual: '+u.credits+'\nNovo saldo estimado: '+(Number(u.credits)+delta)+'\n\nConfirma a operação?',{reply_markup:{inline_keyboard:[
+   [{text:'✅ Confirmar alteração',callback_data:'admin_credit_apply_'+uid+'_'+delta}],
+   [{text:'❌ Cancelar',callback_data:'admin_user_'+uid}]
+  ]}});
+ }
+ const apply=/^admin_credit_apply_(\d{4,20})_(-?\d{1,5})$/.exec(action);
+ if(apply){
+  const uid=apply[1],delta=Number(apply[2]);
+  if(!Number.isSafeInteger(delta)||delta===0||Math.abs(delta)>5000)return chat(chatId,'Quantidade inválida.');
+  // Callback confirms an adjustment. Avoid replay by removing the confirmation button before mutating.
+  const applied=await db('rpc/mc_adjust_credits',{method:'POST',body:{p_telegram_id:uid,p_delta:delta}});
+  await chat(chatId,'✅ SALDO ATUALIZADO\n\nUsuário ID: '+uid+'\nAjuste: '+(delta>0?'+':'')+delta+'\nSaldo atual: '+applied+' créditos.',{reply_markup:{inline_keyboard:[[{text:'👤 Ver usuário',callback_data:'admin_user_'+uid}],[{text:'⬅️ Admin',callback_data:'admin'}]]}});
+  try{await chat(Number(uid),'💳 CRÉDITOS ATUALIZADOS\n\nSeu saldo foi ajustado pelo administrador.\nAlteração: '+(delta>0?'+':'')+delta+' créditos\nNovo saldo: '+applied+' créditos.')}catch(e){console.warn('Credit notification unavailable')}
+  return;
+ }
+ if(action==='admin_recharges'){
+  const rows=await db('mc_recharges?status=eq.pending&select=id,telegram_id,credits_requested,created_at&order=created_at.asc&limit=10');
+  if(!rows.length)return chat(chatId,'✅ Nenhuma recarga pendente.',{reply_markup:adminMenu()});
+  const buttons=rows.map(r=>[{text:'💳 '+r.credits_requested+' créditos · ID '+r.telegram_id,callback_data:'admin_recharge_view_'+r.id}]);
+  return chat(chatId,'💳 RECARGAS PENDENTES\n\nSelecione um pedido para aprovar ou recusar. O saldo só é atualizado após confirmação.',{reply_markup:{inline_keyboard:[...buttons,[{text:'⬅️ Admin',callback_data:'admin'}]]}});
+ }
+ const rechargeView=/^admin_recharge_view_([0-9a-f-]{36})$/i.exec(action);
+ if(rechargeView){
+  const request=(await db('mc_recharges?id=eq.'+rechargeView[1]+'&select=id,telegram_id,credits_requested,status'))[0];
+  if(!request||request.status!=='pending')return chat(chatId,'Pedido não encontrado ou já analisado.');
+  return chat(chatId,'💳 CONFIRMAR RECARGA\n\nUsuário ID: '+request.telegram_id+'\nQuantidade: '+request.credits_requested+' créditos\nStatus: Pendente\n\nAprovar adicionará o saldo automaticamente uma única vez.',{reply_markup:{inline_keyboard:[
+   [{text:'✅ Aprovar e creditar',callback_data:'admin_recharge_yes_'+request.id}],
+   [{text:'❌ Recusar pedido',callback_data:'admin_recharge_no_'+request.id}],
+   [{text:'⬅️ Pedidos',callback_data:'admin_recharges'}]
+  ]}});
+ }
+ const rechargeDecision=/^admin_recharge_(yes|no)_([0-9a-f-]{36})$/i.exec(action);
+ if(rechargeDecision){
+  const approve=rechargeDecision[1]==='yes',rid=rechargeDecision[2];
+  const rows=await db('mc_recharges?id=eq.'+rid+'&select=id,telegram_id,credits_requested,status');
+  if(!rows.length||rows[0].status!=='pending')return chat(chatId,'Esse pedido já foi analisado ou não existe.');
+  await db('rpc/mc_review_recharge',{method:'POST',body:{p_recharge_id:rid,p_approve:approve}});
+  const recipient=String(rows[0].telegram_id);
+  const current=(await db('mc_users?telegram_id=eq.'+recipient+'&select=credits'))[0];
+  await chat(chatId,'✅ RECARGA '+(approve?'APROVADA':'RECUSADA')+'\n\nUsuário ID: '+recipient+'\nCréditos solicitados: '+rows[0].credits_requested+'\nSaldo atual: '+(current?.credits??'indisponível'),{reply_markup:{inline_keyboard:[[{text:'⬅️ Recargas',callback_data:'admin_recharges'}]]}});
+  try{await chat(Number(recipient),'📩 ATUALIZAÇÃO DA RECARGA\n\nSua solicitação de '+rows[0].credits_requested+' créditos foi '+(approve?'aprovada e creditada.':'recusada.')+'\nSaldo atual: '+(current?.credits??'consulte o painel')+' créditos.')}catch(e){console.warn('Recharge notification unavailable')}
+  return;
+ }
+
 }
 
 async function trackEvent(id,event_type){
@@ -259,7 +321,7 @@ async function mainAction(action,chatId,id,from){
 }
 function asAction(text){
  const cmd=tidyCommand(text);
- return ({'/start':'start','/menu':'menu','/key':'key','/gerarkey':'key','/conta':'account','/creditos':'credits','/limites':'limits','/historico':'history','/recarga':'recharge','/grupo':'group','/suporte':'support','/nome':'name','/foto':'photo','/dispositivos':'disconnect','/help':'help','/ajuda':'help','/status':'status','/id':'telegram_id','/admin':'admin','/mensagens':'admin_inbox','/manutencao':'admin_maintenance','/avisos':'admin_announcements'})[cmd]||null;
+ return ({'/start':'start','/menu':'menu','/key':'key','/gerarkey':'key','/conta':'account','/creditos':'credits','/limites':'limits','/historico':'history','/recarga':'recharge','/grupo':'group','/suporte':'support','/nome':'name','/foto':'photo','/dispositivos':'disconnect','/help':'help','/ajuda':'help','/status':'status','/id':'telegram_id','/admin':'admin','/gerenciarcreditos':'admin_credits','/pendentes':'admin_recharges','/mensagens':'admin_inbox','/manutencao':'admin_maintenance','/avisos':'admin_announcements'})[cmd]||null;
 }
 export async function POST(req){
  const secret=process.env.TELEGRAM_WEBHOOK_SECRET;
