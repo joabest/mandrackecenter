@@ -27,7 +27,7 @@ export async function middleware(req){
  if(admin)return NextResponse.next();
  if(path==='/login'||path==='/api/member/login')return NextResponse.next();
  const session=await verifyMember(req.cookies.get('mandracke_member')?.value,secret);
- const isMemberRoute=path==='/member'||path.startsWith('/api/member/');
+ const isMemberRoute=path==='/member'||path.startsWith('/api/member/')||path==='/api/modules'||path==='/api/ui/preferences';
  let memberOK=false;
  if(session){
   try{
