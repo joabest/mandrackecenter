@@ -14,6 +14,7 @@ export async function POST(req){
   const isAdmin=Boolean(process.env.ADMIN_TELEGRAM_ID)&&tid===process.env.ADMIN_TELEGRAM_ID;
   const res=NextResponse.json({ok:true,plan:out[0].plan,is_admin:isAdmin,redirect:isAdmin?'/admin/dashboard':'/member'});
   res.cookies.set('mandracke_member',await userCookie(tid),{path:'/',httpOnly:true,secure:process.env.NODE_ENV==='production',sameSite:'lax',maxAge:28800});
+  res.cookies.set('mandracke_session','',{httpOnly:true,secure:process.env.NODE_ENV==='production',sameSite:'strict',path:'/',maxAge:0});
   res.cookies.set('mandracke_source','telegram_key',{path:'/',httpOnly:true,secure:process.env.NODE_ENV==='production',sameSite:'lax',maxAge:28800});
   return res;
  }catch(e){console.error('Member login unavailable',String(e));return NextResponse.json({error:'Acesso por Telegram indisponível: confira Supabase e migrações.'},{status:503})}
