@@ -13,7 +13,7 @@ export default function TelegramEntry(){
    const r=await fetch('/api/member/telegram-auth',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({initData}),cache:'no-store'});
    const out=await r.json();
    if(!r.ok)throw Error(out.error||'Falha no acesso');
-   location.replace('/member');
+   location.replace(out.redirect||'/member');
   }catch(e){setStatus(e.message);setReady(false)}
  }
  return <main className="auth"><Script src="https://telegram.org/js/telegram-web-app.js" strategy="afterInteractive" onLoad={login}/>
