@@ -132,6 +132,11 @@ export default function Member(){
      {error&&<div className="rounded-xl border border-rose-900 bg-rose-950/30 p-4 text-sm text-rose-200" role="alert">{error} <a className="ml-2 underline" href="/login">Entrar novamente</a></div>}
      {!data&&!error&&<div className="animate-pulse text-sm text-[#a4a0ab]">Carregando seus dados...</div>}
      {data&&<>
+     {isAdmin&&<div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[#78529c] bg-[#2a1c38] p-4">
+       <div className="text-sm"><b>🛡 Conta administrativa reconhecida</b><p className="mt-1 text-xs text-[#baa3cf]">Sua conta Telegram tem acesso aos módulos e controles de administração.</p></div>
+       <a href="/admin/dashboard" className="rounded-xl bg-[#765099] px-4 py-3 text-xs font-semibold text-white">Abrir painel administrativo</a>
+       <a href="/admin/modules" className="rounded-xl border border-[#8261a0] px-4 py-3 text-xs text-[#e8d3f7]">Gerenciar módulos</a>
+     </div>
      <div className="flex flex-wrap items-end justify-between gap-4"><div><div className="mb-2 text-[11px] font-semibold uppercase tracking-[.19em] text-[#a480c8]">MANDRACKE / {view==='dashboard'?'Visão geral':view.toUpperCase()}</div><h1 className="!m-0 text-[28px] font-semibold tracking-tight text-[#f8f4fc] md:text-3xl">{view==='dashboard'?'Seu painel':navigation.flatMap(n=>n.items).find(n=>n.id===view)?.label}</h1><p className="mt-2 text-sm text-[#8f8899]">Bem-vindo, {u.first_name||u.username||'usuário'} · Conta vinculada ao Telegram</p></div><div className="flex items-center gap-2 rounded-full border border-[#3d3843] bg-[#1b1920] px-3 py-2 text-[11px] text-[#c2b9ca]"><span className="h-2 w-2 rounded-full bg-emerald-400"/>Conta ativa</div></div>
      {['dashboard','credits'].includes(view)&&<div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
        <Tile title="Créditos disponíveis" value={money(u.credits)} icon={Wallet} detail="Saldo consultado no Supabase"/>
