@@ -4,7 +4,8 @@ import {verifyMember} from '../../../../lib/member-session';
 import {db} from '../../../../lib/members';
 export const runtime='nodejs';
 export async function POST(req){
- const id=await verifyMember((await cookies()).get('mandracke_member')?.value,process.env.SESSION_SECRET);
+ const session=await verifyMember((await cookies()).get('mandracke_member')?.value,process.env.SESSION_SECRET);
+ const id=session?.id;
  if(!id)return NextResponse.json({error:'Não autenticado'},{status:401});
  let credits;try{({credits}=await req.json())}catch{}
  if(!Number.isSafeInteger(credits)||credits<1||credits>100000)return NextResponse.json({error:'Quantidade inválida'},{status:400});
