@@ -1,8 +1,8 @@
 'use client';
 import {useEffect,useMemo,useState} from 'react';
 import {KeyRound,Trash2,RefreshCw,ArrowLeft,ShieldBan,Search} from 'lucide-react';
-export default function KeysManager({admin=false}){
- const [keys,setKeys]=useState([]),[selected,setSelected]=useState([]),[filter,setFilter]=useState(''),[target,setTarget]=useState(typeof window!=='undefined'&&new URLSearchParams(window.location.search).get('user')||''),[blocked,setBlocked]=useState(false);
+export default function KeysManager({admin=false,initialTarget=''}){
+ const [keys,setKeys]=useState([]),[selected,setSelected]=useState([]),[filter,setFilter]=useState(''),[target,setTarget]=useState(initialTarget),[blocked,setBlocked]=useState(false);
  const [busy,setBusy]=useState(false),[error,setError]=useState(''),[notice,setNotice]=useState('');
  const [mode,setMode]=useState('all');
  async function request(path,options){const r=await fetch(path,{cache:'no-store',...options});const j=await r.json();if(!r.ok)throw Error(j.error||'Falha na solicitação');return j}
