@@ -1,4 +1,5 @@
 import {NextResponse} from 'next/server';
+import {randomBytes} from 'node:crypto';
 import {db,generateKey,hashKey,safeUser} from '../../../../lib/members';
 
 export const runtime='nodejs';
@@ -79,7 +80,7 @@ const menu=[
  [{text:'🖼 Atualizar Foto',callback_data:'photo'},{text:'✏️ Atualizar Nome',callback_data:'name'}],
  [{text:'🛡 Desconectar Dispositivos',callback_data:'disconnect'}],
  [{text:'👥 Grupo da Central',callback_data:'group'}],
- [{text:'🌐 Abrir site (login automático)',web_app:{url:TELEGRAM_APP}},{text:'🆘 Suporte',url:SUPPORT}]
+ [{text:'🌐 Abrir site (login automático)',url:LOGIN},{text:'🆘 Suporte',url:SUPPORT}]
 ];
 
 async function telegram(method,body){
@@ -93,7 +94,17 @@ async function telegram(method,body){
  return x.result;
 }
 const chat=(chat_id,text,options={})=>telegram('sendMessage',{chat_id,text,disable_web_page_preview:true,...options});
-const keyboard=(extra=[])=>({inline_keyboard:[...menu,...extra]});
+async function externalLoginUrl(id){
+ const ticket=randomBytes(32).toString('base64url');
+ await db('mc_browser_tickets',{method:'POST',body:{telegram_id:id,ticket_hash:hashKey(ticket),expires_at:new Date(Date.now()+3*60*1000).toISOString()},prefer:'return=minimal'});
+ return 'https://mandracke.vercel.app/entrar?ticket='+encodeURIComponent(ticket);
+}
+async function keyboard(id,extra=[]){
+ let url=LOGIN;
+ try{url=await externalLoginUrl(id)}catch(e){console.warn('Browser ticket unavailable',String(e))}
+ const rows=menu.map(row=>row.map(item=>item.text?.includes('Abrir site')?{text:'🌐 Abrir site no navegador',url}:item));
+ return {inline_keyboard:[...rows,...extra]};
+}
 function tidyCommand(text){return String(text||'').trim().split(/\s+/)[0].toLowerCase().split('@')[0]}
 function fullPlan(u){return safeUser(u).effective_plan}
 async function getUser(id){
@@ -104,7 +115,7 @@ async function getUser(id){
 async function intro(id,name){
  const u=await getUser(id);
  const state=u?'Seu cadastro já está ativo.':'Use “🔑 Gerar Key” para ativar sua conta.';
- await chat(id,'🟣 MANDRACKE CENTER\n\nOlá, '+(name||'usuário')+'! Bem-vindo à central.\n'+state+'\n\nSelecione uma opção abaixo.\n\n📢 Você poderá receber avisos da central. Para cancelar: /pararavisos.',{reply_markup:keyboard(isAdmin(id)?[[{text:'🛡 Administração',callback_data:'admin'}]]:[])});
+ await chat(id,'🟣 MANDRACKE CENTER\n\nOlá, '+(name||'usuário')+'! Bem-vindo à central.\n'+state+'\n\nSelecione uma opção abaixo.\n\n📢 Você poderá receber avisos da central. Para cancelar: /pararavisos.',{reply_markup:await keyboard(id,isAdmin(id)?[[{text:'🛡 Administração',callback_data:'admin'}]]:[])});
 }
 async function issueKey(chatId,telegramId,from){
  const key=generateKey();
@@ -118,12 +129,12 @@ async function issueKey(chatId,telegramId,from){
  await chat(chatId,
  '🔑 MANDRACKE CENTER — SUA KEY\n\n'+
  'Sua key permanente:\n'+key+'\n\n'+
- '🌐 Toque no botão abaixo para abrir o site já conectado ao seu Telegram.\n'+
+ '🌐 Toque no link para entrar no site com autenticação temporária.\n'+
  'Se abrir no navegador externo, entre com a key em: '+LOGIN+'\n\n'+
  'A key permanece válida até você solicitar outra ou o administrador revogá-la.'+
  when+'\n\n⚠️ Não compartilhe sua key. Solicitar outra substitui a anterior.',
  {reply_markup:{inline_keyboard:[
- [{text:'🌐 Entrar automaticamente pelo Telegram',web_app:{url:TELEGRAM_APP}}],
+ [{text:'🌐 Abrir site pelo navegador',url:await externalLoginUrl(telegramId)}],
  [{text:'👤 Minha Conta',callback_data:'account'},{text:'⬅️ Menu',callback_data:'menu'}]
  ]}}
  );
@@ -141,7 +152,7 @@ async function account(chatId,id){
  (isAdmin(id)?'\nMC: '+Number(u.mc_tokens||0).toLocaleString('pt-BR')+' / 1.500 (renovação diária à 00h, Brasília)':'')+
  '\nSituação: '+(active?'Ativa':'Desativada')+
  '\nKey: permanente (não exibida novamente por segurança).',
- {reply_markup:keyboard()});
+ {reply_markup:await keyboard(id)});
 }
 async function credits(chatId,id){
  const u=await getUser(id);
