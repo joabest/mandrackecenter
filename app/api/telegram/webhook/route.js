@@ -3,6 +3,7 @@ import {db,generateKey,hashKey,safeUser} from '../../../../lib/members';
 
 export const runtime='nodejs';
 const LOGIN='https://mandracke.vercel.app/login';
+const TELEGRAM_APP='https://mandracke.vercel.app/telegram';
 const SUPPORT='https://t.me/mandracke';
 const BOT='https://t.me/mandrackecenterkeybot';
 const isAdmin=id=>Boolean(process.env.ADMIN_TELEGRAM_ID)&&String(id)===process.env.ADMIN_TELEGRAM_ID;
@@ -78,7 +79,7 @@ const menu=[
  [{text:'🖼 Atualizar Foto',callback_data:'photo'},{text:'✏️ Atualizar Nome',callback_data:'name'}],
  [{text:'🛡 Desconectar Dispositivos',callback_data:'disconnect'}],
  [{text:'👥 Grupo da Central',callback_data:'group'}],
- [{text:'🌐 Entrar no Painel',url:LOGIN},{text:'🆘 Suporte',url:SUPPORT}]
+ [{text:'🌐 Abrir site (login automático)',web_app:{url:TELEGRAM_APP}},{text:'🆘 Suporte',url:SUPPORT}]
 ];
 
 async function telegram(method,body){
@@ -96,7 +97,8 @@ const keyboard=(extra=[])=>({inline_keyboard:[...menu,...extra]});
 function tidyCommand(text){return String(text||'').trim().split(/\s+/)[0].toLowerCase().split('@')[0]}
 function fullPlan(u){return safeUser(u).effective_plan}
 async function getUser(id){
- const users=await db('mc_users?telegram_id=eq.'+id+'&select=telegram_id,username,first_name,credits,created_at,plan,promo_pro_until,enabled,photo_file_id,session_version');
+ if(isAdmin(id))await db('rpc/mc_refresh_admin_allowance',{method:'POST',body:{p_telegram_id:id}});
+ const users=await db('mc_users?telegram_id=eq.'+id+'&select=telegram_id,username,first_name,credits,created_at,plan,promo_pro_until,enabled,photo_file_id,session_version,mc_tokens,admin_allowance_day');
  return users[0]||null;
 }
 async function intro(id,name){
@@ -120,7 +122,7 @@ async function issueKey(chatId,telegramId,from){
  'Copie a key e cole no campo de acesso do site. Ela permanece válida até você solicitar outra ou o administrador revogá-la.'+
  when+'\n\n⚠️ Não compartilhe sua key. Solicitar outra substitui a anterior.',
  {reply_markup:{inline_keyboard:[
- [{text:'🌐 Abrir login',url:LOGIN}],
+ [{text:'🌐 Entrar automaticamente pelo Telegram',web_app:{url:TELEGRAM_APP}}],
  [{text:'👤 Minha Conta',callback_data:'account'},{text:'⬅️ Menu',callback_data:'menu'}]
  ]}}
  );
@@ -135,6 +137,7 @@ async function account(chatId,id){
  '\nID: '+u.telegram_id+
  '\nPlano: '+fullPlan(u)+(promo?'\n🎁 PRO até '+new Date(u.promo_pro_until).toLocaleString('pt-BR',{timeZone:'America/Sao_Paulo'}):'')+
  '\nCréditos: '+Number(u.credits).toLocaleString('pt-BR')+
+ (isAdmin(id)?'\nMC: '+Number(u.mc_tokens||0).toLocaleString('pt-BR')+' / 1.500 (renovação diária à 00h, Brasília)':'')+
  '\nSituação: '+(active?'Ativa':'Desativada')+
  '\nKey: permanente (não exibida novamente por segurança).',
  {reply_markup:keyboard()});
@@ -143,7 +146,7 @@ async function credits(chatId,id){
  const u=await getUser(id);
  if(!u)return chat(chatId,'Cadastre sua conta primeiro com Gerar Key.');
  await chat(chatId,'💳 CRÉDITOS\n\nSaldo atual: '+Number(u.credits).toLocaleString('pt-BR')+
- ' créditos.\nPlano: '+fullPlan(u)+'\n\nO saldo é consultado diretamente no banco de dados. Recargas só são creditadas após aprovação do administrador.',
+ ' créditos.\nPlano: '+fullPlan(u)+(isAdmin(id)?'\nMC: '+Number(u.mc_tokens||0).toLocaleString('pt-BR')+' / 1500 (diários)':'')+'\n\nO saldo é consultado diretamente no banco de dados. Recargas só são creditadas após aprovação do administrador.',
  {reply_markup:{inline_keyboard:[[{text:'➕ Solicitar recarga',callback_data:'recharge'}],[{text:'⬅️ Menu',callback_data:'menu'}]]}});
 }
 async function limits(chatId,id){
