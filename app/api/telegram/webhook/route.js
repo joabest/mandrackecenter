@@ -196,20 +196,20 @@ async function updateName(chatId,id,name){
  const u=await getUser(id);if(!u)return chat(chatId,'Cadastre a conta com Gerar Key antes de atualizar o perfil.');
  const clean=String(name||'').trim();if(clean.length<2||clean.length>80)return chat(chatId,'Nome inválido: use entre 2 e 80 caracteres.');
  await db('mc_users?telegram_id=eq.'+id,{method:'PATCH',body:{first_name:clean},prefer:'return=minimal'});
- await chat(chatId,'✅ Nome atualizado para: '+clean,{reply_markup:keyboard()});
+ await chat(chatId,'✅ Nome atualizado para: '+clean,{reply_markup:await keyboard(id)});
 }
 async function updatePhoto(chatId,id,photo){
  const u=await getUser(id);if(!u)return chat(chatId,'Cadastre sua conta primeiro.');
  const fileId=photo?.at(-1)?.file_id;
  if(!fileId)return chat(chatId,'Envie uma foto, não um arquivo de outro tipo.');
  await db('mc_users?telegram_id=eq.'+id,{method:'PATCH',body:{photo_file_id:fileId},prefer:'return=minimal'});
- await chat(chatId,'✅ Referência da foto atualizada no seu perfil. Seu avatar do Telegram não foi alterado.',{reply_markup:keyboard()});
+ await chat(chatId,'✅ Referência da foto atualizada no seu perfil. Seu avatar do Telegram não foi alterado.',{reply_markup:await keyboard(id)});
 }
 async function disconnect(chatId,id){
  const u=await getUser(id);
  if(!u)return chat(chatId,'Cadastre sua conta primeiro.');
  await db('rpc/mc_disconnect_sessions',{method:'POST',body:{p_telegram_id:id}});
- await chat(chatId,'🛡 DISPOSITIVOS DESCONECTADOS\n\nAs sessões anteriores do painel foram invalidadas. Sua key permanente continua válida e pode ser usada para entrar novamente.',{reply_markup:keyboard()});
+ await chat(chatId,'🛡 DISPOSITIVOS DESCONECTADOS\n\nAs sessões anteriores do painel foram invalidadas. Sua key permanente continua válida e pode ser usada para entrar novamente.',{reply_markup:await keyboard(id)});
 }
 async function mainAction(action,chatId,id,from){
  if(action==='admin'||action.startsWith('admin_'))return adminAction(action,chatId,id);
@@ -226,9 +226,9 @@ async function mainAction(action,chatId,id,from){
   case 'disconnect':return disconnect(chatId,id);
   case 'group':{
    const url=process.env.CENTRAL_GROUP_URL;
-   return chat(chatId,url?'👥 GRUPO DA CENTRAL\n\n'+url:'O administrador ainda não configurou o convite do grupo.',{reply_markup:keyboard()});
+   return chat(chatId,url?'👥 GRUPO DA CENTRAL\n\n'+url:'O administrador ainda não configurou o convite do grupo.',{reply_markup:await keyboard(id)});
   }
-  case 'support':return chat(chatId,'🆘 SUPORTE\n\n'+SUPPORT,{reply_markup:keyboard()});
+  case 'support':return chat(chatId,'🆘 SUPORTE\n\n'+SUPPORT,{reply_markup:await keyboard(id)});
   default:{
    const m=/^recharge_(100|500|1000)$/.exec(action);
    if(m)return recharge(chatId,id,Number(m[1]));
