@@ -22,7 +22,7 @@ export async function GET(){
   const byId=new Map(settings.map(m=>[m.module_id,m]));
   const result=modules.map(m=>{
    const flag=byId.get(m.id);
-   const enabled=flag?.enabled===true;
+   const enabled=flag ? flag.enabled===true : true;
    const access=moduleAccess({moduleId:m.id,enabled,credits:balance,isAdmin:admin});
    return {...m,enabled,off_message:flag?.off_message||'Esta função está temporariamente indisponível.',access};
   });
