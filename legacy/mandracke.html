@@ -409,6 +409,19 @@ document.getElementById('binSearch').oninput=e=>renderBins(e.target.value);
  const title=node('strong','',((u.first_name||u.username)||'Conta Telegram')+' · '+u.credits+' créditos');top.appendChild(title);
  const badge=node('span','mc-muted','@'+(u.username||'sem username'));top.appendChild(badge);card.appendChild(top);
  card.appendChild(node('div','mc-muted','Telegram ID: '+u.telegram_id));
+ const planRow=node('div','mc-line');
+ const planLabel=node('span','mc-muted','Plano: '+(u.effective_plan||u.plan||'FREE')+(u.promo_pro_until&&new Date(u.promo_pro_until)>new Date()?' · PRO promocional até '+new Date(u.promo_pro_until).toLocaleDateString('pt-BR'):''));
+ planRow.appendChild(planLabel);
+ const select=node('select');select.setAttribute('aria-label','Selecionar plano');select.style.cssText='background:#120d1d;color:#e8dcff;border:1px solid #644c8c;border-radius:9px;padding:7px;';
+ for(const p of ['FREE','PRO','PREMIUM']){const o=node('option','',p);o.value=p;if(u.plan===p)o.selected=true;select.appendChild(o)}
+ planRow.appendChild(select);
+ planRow.appendChild(btn('Aplicar plano',async()=>{if(!confirm('Alterar plano de '+u.telegram_id+' para '+select.value+'?'))return;try{await api('PATCH','/api/admin/users',{action:'plan',telegram_id:u.telegram_id,plan:select.value});await reload()}catch(e){alert(e.message)}}));
+ card.appendChild(planRow);
+ const access=node('div','mc-line');access.appendChild(node('span','mc-muted',u.enabled?'Conta ativa':'Conta desativada'));
+ access.appendChild(btn(u.enabled?'Desativar':'Ativar',async()=>{if(!confirm('Alterar acesso de '+u.telegram_id+'?'))return;try{await api('PATCH','/api/admin/users',{action:'enabled',telegram_id:u.telegram_id,enabled:!u.enabled});await reload()}catch(e){alert(e.message)}}));
+ access.appendChild(btn('Revogar key',async()=>{if(!confirm('Revogar a key atual de '+u.telegram_id+'?'))return;try{await api('PATCH','/api/admin/users',{action:'revoke_key',telegram_id:u.telegram_id});await reload()}catch(e){alert(e.message)}}));
+ card.appendChild(access);
+
  const controls=node('div','mc-line'),amount=node('input');amount.type='number';amount.min='1';amount.max='100000';amount.value='10';amount.style.maxWidth='115px';amount.setAttribute('aria-label','Quantidade de créditos');
  controls.appendChild(amount);
  controls.appendChild(btn('+ Creditar',()=>changeCredits(u,amount.value,1)));
