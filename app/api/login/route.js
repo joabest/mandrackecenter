@@ -10,6 +10,8 @@ export async function POST(req) {
  const dig=s=>createHash('sha256').update(s).digest();
  if(!timingSafeEqual(dig(actual),dig(configured)))return NextResponse.json({error:'Senha incorreta'},{status:401});
  const res=NextResponse.json({ok:true});
+ res.cookies.set('mandracke_member','',{httpOnly:true,secure:process.env.NODE_ENV==='production',sameSite:'lax',path:'/',maxAge:0});
+ res.cookies.set('mandracke_source','',{httpOnly:true,secure:process.env.NODE_ENV==='production',sameSite:'lax',path:'/',maxAge:0});
  res.cookies.set('mandracke_session',await signSession(secret,Date.now()+8*60*60*1000),{httpOnly:true,secure:process.env.NODE_ENV==='production',sameSite:'strict',path:'/',maxAge:8*60*60});
  return res;
 }
