@@ -3,10 +3,10 @@ import {validSession} from './lib/auth';
 import {verifyMember} from './lib/member-session';
 export async function middleware(req){
  const path=req.nextUrl.pathname;
- if(path==='/api/login'||path==='/api/public-config'||path==='/api/telegram/webhook'||path==='/manifest.webmanifest'||path==='/mandracke-icon.svg'||path==='/favicon.ico'||path.startsWith('/_next/'))return NextResponse.next();
+ if(path==='/api/login'||path==='/api/public-config'||path==='/api/telegram/webhook'||path==='/api/member/telegram-auth'||path==='/manifest.webmanifest'||path==='/mandracke-icon.svg'||path==='/favicon.ico'||path.startsWith('/_next/'))return NextResponse.next();
  const secret=process.env.SESSION_SECRET;
  const admin=await validSession(req.cookies.get('mandracke_session')?.value,secret);
- if(path==='/maintenance')return NextResponse.next();
+ if(path==='/maintenance'||path==='/telegram')return NextResponse.next();
  if(!admin && !(path==='/login'&&req.nextUrl.searchParams.get('admin')==='1')){
   try{
    const api=process.env.SUPABASE_URL,token=process.env.SUPABASE_SERVICE_ROLE_KEY;
