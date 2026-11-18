@@ -1,13 +1,14 @@
 'use client';
 import {useEffect,useState,useRef} from 'react';
 import {modules as moduleCatalog} from '../../lib/modules';
-import {LayoutDashboard,Users,Wallet,ReceiptText,History,MessageCircle,Settings,ChevronLeft,ChevronRight,Menu,Search,ArrowUpRight,ExternalLink,RefreshCw,LogOut,Shield,CheckCircle2,Clock3,ShieldCheck,Coins,PanelLeftClose,Pin,EllipsisVertical,UserCircle,ChevronDown} from 'lucide-react';
+import {iconForModule} from '../../lib/module-icons';
+import {LayoutDashboard,Users,Wallet,ReceiptText,History,MessageCircle,Settings,ChevronLeft,ChevronRight,Menu,Search,ArrowUpRight,ExternalLink,RefreshCw,LogOut,Shield,CheckCircle2,Clock3,ShieldCheck,Coins,PanelLeftClose,Pin,EllipsisVertical,UserCircle,ChevronDown,Boxes} from 'lucide-react';
 
 const navigation=[
- {group:'GERAL',items:[{id:'dashboard',label:'Visão geral',icon:LayoutDashboard},{id:'modules',label:'Módulos',icon:Settings},{id:'profile',label:'Minha conta',icon:Users}]},
+ {group:'GERAL',items:[{id:'dashboard',label:'Visão geral',icon:LayoutDashboard},{id:'modules',label:'Módulos',icon:Boxes},{id:'profile',label:'Minha conta',icon:Users}]},
  {group:'FINANCEIRO',items:[{id:'credits',label:'Créditos e MC',icon:Wallet},{id:'recharges',label:'Solicitar recarga',icon:ReceiptText},{id:'history',label:'Histórico',icon:History}]},
- {group:'FERRAMENTAS',items:moduleCatalog.filter(m=>m.group==='Ferramentas').map(m=>({id:'module:'+m.id,label:m.name,icon:Settings}))},
- {group:'CHECKERS LEGADOS',items:moduleCatalog.filter(m=>m.group==='Checkers legados').map(m=>({id:'module:'+m.id,label:m.name,icon:Shield}))},
+ {group:'FERRAMENTAS',items:moduleCatalog.filter(m=>m.group==='Ferramentas').map(m=>({id:'module:'+m.id,label:m.name,icon:iconForModule(m.id)}))},
+ {group:'CHECKERS LEGADOS',items:moduleCatalog.filter(m=>m.group==='Checkers legados').map(m=>({id:'module:'+m.id,label:m.name,icon:iconForModule(m.id)}))},
  {group:'SISTEMA',items:[{id:'support',label:'Suporte',icon:MessageCircle}]}
 ];
 const money=n=>Number(n||0).toLocaleString('pt-BR');
