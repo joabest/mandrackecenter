@@ -24,9 +24,12 @@ export async function middleware(req){
  if(path==='/api/login'||path==='/api/public-config'||path==='/api/telegram/webhook'||path==='/api/member/telegram-auth'||path==='/api/member/browser-ticket'||path==='/manifest.webmanifest'||path==='/mandracke-icon.svg'||path==='/favicon.ico'||path.startsWith('/_next/'))return NextResponse.next();
 
  const secret=process.env.SESSION_SECRET;
- const passwordAdmin=await validSession(req.cookies.get('mandracke_session')?.value,secret);
  if(path==='/maintenance'||path==='/telegram'||path==='/entrar')return NextResponse.next();
- const {session,memberOK,telegramAdmin}=passwordAdmin?{session:null,memberOK:false,telegramAdmin:false}:await verifiedTelegramAdmin(req,secret);
+ // A Telegram member session always takes precedence over a leftover password-admin cookie.
+ // A different Telegram account must never inherit administrative access from this browser.
+ const hasMemberCookie=Boolean(req.cookies.get('mandracke_member')?.value);
+ const {session,memberOK,telegramAdmin}=hasMemberCookie?await verifiedTelegramAdmin(req,secret):{session:null,memberOK:false,telegramAdmin:false};
+ const passwordAdmin=hasMemberCookie?false:await validSession(req.cookies.get('mandracke_session')?.value,secret);
  const admin=passwordAdmin||telegramAdmin;
  
  if(!admin && !(path==='/login'&&req.nextUrl.searchParams.get('admin')==='1')){
