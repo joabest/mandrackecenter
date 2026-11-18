@@ -1,5 +1,5 @@
 'use client';
-import {useEffect,useState} from 'react';
+import {useEffect,useState,useRef} from 'react';
 import {LayoutDashboard,Users,Wallet,ReceiptText,History,MessageCircle,Settings,ChevronLeft,ChevronRight,Menu,Search,ArrowUpRight,ExternalLink,RefreshCw,LogOut,Shield,CheckCircle2,Clock3,ShieldCheck,Coins,PanelLeftClose,Pin,EllipsisVertical,UserCircle,ChevronDown} from 'lucide-react';
 
 const navigation=[
@@ -22,7 +22,27 @@ export default function Member(){
  const [view,setView]=useState('dashboard'),[narrow,setNarrow]=useState(false),[mobile,setMobile]=useState(false);
  const [creditAmount,setCreditAmount]=useState('100'),[busy,setBusy]=useState(false),[notice,setNotice]=useState('');
  const [query,setQuery]=useState('');
- useEffect(()=>{try{setNarrow(localStorage.getItem('mc_sidebar_collapsed')==='1')}catch{}refresh()},[]);
+ const [navOrder,setNavOrder]=useState(Object.fromEntries(navigation.map(g=>[g.group,g.items.map(i=>i.id)])));
+ const [navPins,setNavPins]=useState([]),[navMenu,setNavMenu]=useState(null);
+ const prefsHydrated=useRef(false);
+ useEffect(()=>{
+  async function loadPreferences(){
+   try{
+    const r=await fetch('/api/ui/preferences',{cache:'no-store'});
+    if(r.ok){const data=await r.json(),p=data.preferences?.member_sidebar||{};
+     if(p.order&&typeof p.order==='object')setNavOrder(o=>({...o,...p.order}));
+     if(Array.isArray(p.pins))setNavPins(p.pins);
+     if(typeof p.narrow==='boolean')setNarrow(p.narrow);
+    }
+   }catch(e){console.warn('Preferências não disponíveis')}finally{prefsHydrated.current=true}
+  }
+  loadPreferences();refresh();
+ },[]);
+ useEffect(()=>{
+  if(!prefsHydrated.current)return;
+  const timer=setTimeout(()=>fetch('/api/ui/preferences',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({preferences:{member_sidebar:{order:navOrder,pins:navPins,narrow}}})}).catch(()=>{}),350);
+  return()=>clearTimeout(timer);
+ },[navOrder,navPins,narrow]);
  async function refresh(){
   try{const r=await fetch('/api/member/me',{cache:'no-store'});const out=await r.json();if(!r.ok)throw Error(out.error||'Falha ao consultar conta');setData(out);setError('')}
   catch(e){setError(e.message)}
@@ -38,16 +58,44 @@ export default function Member(){
  }
  async function logout(){await fetch('/api/member/logout',{method:'POST'});location.replace('/login')}
  const move=id=>{setView(id);setMobile(false);setNotice('')};
- const toggle=()=>{setNarrow(n=>{try{localStorage.setItem('mc_sidebar_collapsed',n?'0':'1')}catch{}return !n})};
+ const toggle=()=>setNarrow(n=>!n);
  const u=data?.user||{},isAdmin=Boolean(data?.is_admin);
  const rows=(data?.recharges||[]).filter(r=>!query||String(r.credits_requested).includes(query)||(label[r.status]||r.status).toLowerCase().includes(query.toLowerCase()));
- const nav=()=>navigation.map(section=><div key={section.group} className="mb-7">
-  {!narrow&&<div className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-[.16em] text-[#736b7b]">{section.group}</div>}
-  {section.items.map(item=>{const Icon=item.icon;return <button key={item.id} title={item.label} type="button" onClick={()=>move(item.id)}
-   className={'!mb-1 flex h-10 w-full items-center gap-3 !rounded-lg !border !px-3 !py-2 text-left text-[13px] !font-medium transition-colors '+(view===item.id?'!border-[#574364] !bg-[#2a2630] !text-white':'!border-transparent !bg-transparent !text-[#aaa4b0] hover:!bg-[#242028] hover:!text-white')}>
-   <Icon size={17} className="shrink-0 text-[#b09bc8]"/>{!narrow&&<span className="truncate">{item.label}</span>}
-   </button>})}
- </div>);
+ const groupItems=g=>g.items.slice().sort((a,b)=>{
+  const ids=navOrder[g.group]||[],ai=ids.indexOf(a.id),bi=ids.indexOf(b.id);
+  return(ai<0?100:ai)-(bi<0?100:bi);
+ });
+ const reorder=(group,from,to)=>{
+  if(!group||from===to)return;
+  const g=navigation.find(x=>x.group===group);if(!g)return;
+  const ids=groupItems(g).map(x=>x.id);
+  if(!ids.includes(from)||!ids.includes(to))return;
+  ids.splice(ids.indexOf(to),0,ids.splice(ids.indexOf(from),1)[0]);
+  setNavOrder(p=>({...p,[group]:ids}));
+ };
+ function navItem(item,section,pinned=false){
+  const Icon=item.icon;
+  return <div key={(pinned?'pin-':'')+item.id}
+   draggable={!pinned}
+   onDragStart={e=>{e.dataTransfer.setData('text/plain',JSON.stringify({group:section.group,id:item.id}));e.dataTransfer.effectAllowed='move'}}
+   onDragOver={e=>e.preventDefault()}
+   onDrop={e=>{e.preventDefault();try{const drag=JSON.parse(e.dataTransfer.getData('text/plain'));if(drag.group===section.group)reorder(section.group,drag.id,item.id)}catch{}}}
+   className="relative mb-1 flex items-center">
+    <button title={item.label} type="button" onClick={()=>move(item.id)}
+     className={'flex h-10 w-full items-center gap-3 !rounded-lg !border !py-2 text-left text-[13px] !font-medium transition-colors '+(narrow?'!justify-center !px-2':'!pl-3 !pr-9')+' '+(view===item.id?'!border-[#574364] !bg-[#2a2630] !text-white':'!border-transparent !bg-transparent !text-[#aaa4b0] hover:!bg-[#242028] hover:!text-white')}>
+      <Icon size={17} className="shrink-0 text-[#b09bc8]"/>{!narrow&&<span className="truncate">{item.label}</span>}
+    </button>
+    {!narrow&&<button type="button" aria-label={'Opções '+item.label} onClick={()=>setNavMenu(navMenu===item.id?null:item.id)} className="absolute right-1 !bg-transparent !px-2 !py-2 text-[#9c91a8]"><EllipsisVertical size={16}/></button>}
+    {navMenu===item.id&&<div className="absolute right-0 top-10 z-20 w-44 rounded-xl border border-[#594365] bg-[#271e2e] p-2 shadow-xl"><button className="flex items-center gap-2 !bg-transparent !px-2 !py-2 text-xs" onClick={()=>{setNavPins(x=>x.includes(item.id)?x.filter(k=>k!==item.id):[...x,item.id]);setNavMenu(null)}}><Pin size={14}/>{navPins.includes(item.id)?'Desafixar':'Fixar no topo'}</button></div>}
+   </div>;
+ }
+ const nav=()=><>
+  {!!navPins.length&&<section className="mb-7">{!narrow&&<div className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-[.16em] text-[#8b789c]">FIXADOS</div>}{navPins.map(id=>{const g=navigation.find(x=>x.items.some(i=>i.id===id)),item=g?.items.find(i=>i.id===id);return item?navItem(item,g,true):null})}</section>}
+  {navigation.map(section=><div key={section.group} className="mb-7">
+   {!narrow&&<div className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-[.16em] text-[#736b7b]">{section.group}</div>}
+   {groupItems(section).map(item=>navItem(item,section))}
+  </div>)}
+ </>;
  return <div className="min-h-screen bg-[#0e0e11] text-[#f0edf4]">
   <div className="flex min-h-screen">
    {mobile&&<button className="fixed inset-0 z-30 !rounded-none !bg-black/70" aria-label="Fechar menu" onClick={()=>setMobile(false)}/>}
