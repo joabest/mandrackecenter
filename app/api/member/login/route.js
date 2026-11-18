@@ -11,7 +11,8 @@ export async function POST(req){
   const tid=String(out[0].telegram_id);
   if(!/^\d+$/.test(tid))throw Error('Invalid Telegram ID');
   try{await db('mc_usage_events',{method:'POST',body:{telegram_id:tid,event_type:'member_login'},prefer:'return=minimal'})}catch{};
-  const res=NextResponse.json({ok:true,plan:out[0].plan});
+  const isAdmin=Boolean(process.env.ADMIN_TELEGRAM_ID)&&tid===process.env.ADMIN_TELEGRAM_ID;
+  const res=NextResponse.json({ok:true,plan:out[0].plan,is_admin:isAdmin,redirect:isAdmin?'/admin/dashboard':'/member'});
   res.cookies.set('mandracke_member',await userCookie(tid),{path:'/',httpOnly:true,secure:process.env.NODE_ENV==='production',sameSite:'lax',maxAge:28800});
   res.cookies.set('mandracke_source','telegram_key',{path:'/',httpOnly:true,secure:process.env.NODE_ENV==='production',sameSite:'lax',maxAge:28800});
   return res;
