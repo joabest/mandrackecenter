@@ -13,7 +13,7 @@ export default function BrowserEntry(){
     const res=await fetch('/api/member/browser-ticket',{method:'POST',headers:{'Content-Type':'application/json'},cache:'no-store',body:JSON.stringify({ticket})});
     const json=await res.json();
     if(!res.ok)throw Error(json.error||'Não foi possível entrar');
-    if(!cancelled)location.replace('/member');
+    if(!cancelled)location.replace(json.redirect||'/member');
    }catch(e){if(!cancelled){setError(e.message);setBusy(false)}}
   })();
   return()=>{cancelled=true};
