@@ -29,6 +29,7 @@ export async function POST(req){
   const cookie=await userCookie(user.id);
   try{await db('mc_usage_events',{method:'POST',body:{telegram_id:user.id,event_type:'member_login'},prefer:'return=minimal'})}catch{}
   const response=NextResponse.json({ok:true,source:'telegram_webapp',redirect:String(user.id)===process.env.ADMIN_TELEGRAM_ID?'/admin/dashboard':'/member'});
+  response.cookies.set('mandracke_session','',{httpOnly:true,secure:process.env.NODE_ENV==='production',sameSite:'strict',path:'/',maxAge:0});
   response.cookies.set('mandracke_member',cookie,{httpOnly:true,secure:process.env.NODE_ENV==='production',sameSite:'lax',path:'/',maxAge:28800});
   response.cookies.set('mandracke_source','telegram_webapp',{httpOnly:true,secure:process.env.NODE_ENV==='production',sameSite:'lax',path:'/',maxAge:28800});
   return response;
