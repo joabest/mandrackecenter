@@ -14,12 +14,10 @@ export async function POST(req){
  const id=message.from?.id;
  if(!Number.isSafeInteger(id)||id<=0)return NextResponse.json({ok:true});
  try{
-  const existing=await db('mc_users?telegram_id=eq.'+id+'&select=telegram_id');
-  if(!existing?.length)await db('mc_users',{method:'POST',body:{telegram_id:id,username:String(message.from?.username||'').slice(0,80),first_name:String(message.from?.first_name||'').slice(0,100)},prefer:'resolution=merge-duplicates,return=minimal'});
-  else await db('mc_users?telegram_id=eq.'+id,{method:'PATCH',body:{username:String(message.from?.username||'').slice(0,80),first_name:String(message.from?.first_name||'').slice(0,100)},prefer:'return=minimal'});
   const key=generateKey();
-  await db('mc_login_keys',{method:'POST',body:{telegram_id:id,key_hash:hashKey(key),expires_at:new Date(Date.now()+10*60*1000).toISOString()},prefer:'return=minimal'});
-  await reply(message.chat.id,'MANDRACKE CENTER\n\nSua key de acesso (uso único, válida por 10 minutos):\n\n'+key+'\n\nCopie e cole na tela de login do painel. Não compartilhe esta key.');
+  const out=await db('rpc/mc_activate_telegram',{method:'POST',body:{p_telegram_id:id,p_username:String(message.from?.username||'').slice(0,80),p_first_name:String(message.from?.first_name||'').slice(0,100),p_key_hash:hashKey(key)}});
+  const promo=Array.isArray(out)&&out[0]?.promo_pro_until&&new Date(out[0].promo_pro_until)>new Date();
+  await reply(message.chat.id,'MANDRACKE CENTER\n\nSua key permanente de acesso:\n\n'+key+'\n\nCopie e cole na tela de login do painel. Não compartilhe esta key.\n\n'+(promo?'PROMOÇÃO: seu PRO grátis de 7 dias está ativo.':'Plano e créditos podem ser consultados no painel.')+'\n\nAtenção: pedir uma nova key pelo /start substitui a anterior.');
  }catch(e){console.error('Telegram webhook',String(e));return NextResponse.json({error:'Falha temporária ao processar /start'},{status:500})}
  return NextResponse.json({ok:true});
 }
