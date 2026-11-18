@@ -50,7 +50,7 @@ export async function DELETE(req){
   if(!user.admin&&b.all===true&&owner!==user.id)return bad('Sem permissão',403);
   const effectiveOwner=owner??(user.admin?null:user.id);
   if(!user.admin&&effectiveOwner!==user.id)return bad('Sem permissão',403);
-  if(user.admin&&owner===null&&b.all!==true)return bad('Selecione o escopo',400);
+  if(user.admin&&owner===null&&b.all!==true&&b.scope!=='all')return bad('Selecione o escopo',400);
   if(user.admin&&owner===null&&b.all===true&&b.doubleConfirm!=='DESTRUIR TODAS')return bad('Confirmação dupla necessária');
   const actorName=user.id==='password-admin'?'admin:password':'telegram:'+user.id;
   const reason=typeof b.reason==='string'?b.reason.slice(0,250):'Solicitado no painel';
