@@ -1,3 +1,4 @@
+import './tailwind.css';
 import './style.css';
 export const metadata={
  title:{default:'MANDRACKE CENTER | Painel Administrativo',template:'%s | MANDRACKE CENTER'},
