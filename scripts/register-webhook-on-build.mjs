@@ -42,6 +42,13 @@ if(process.env.VERCEL_ENV!=='production'){
     });
     const result=await c.json();
     console.log(result.ok?'Telegram: commands registered':'Telegram: command registration failed');
+    try{
+     const infoRes=await fetch('https://api.telegram.org/bot'+token+'/getWebhookInfo',{signal:AbortSignal.timeout(8000)});
+     const info=await infoRes.json();
+     const v=info.result||{};
+     console.log('Telegram webhook diagnostics:',JSON.stringify({url:v.url,pending:v.pending_update_count,last_error_message:v.last_error_message||null,last_error_date:v.last_error_date||null,allowed_updates:v.allowed_updates||[]}));
+    }catch{console.warn('Telegram webhook diagnostics unavailable')}
+
    }catch{console.warn('Telegram: command registration unavailable')}
   }
  }catch(e){console.warn('Telegram webhook: setup unavailable; use the administrative setup action')}
