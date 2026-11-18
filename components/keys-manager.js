@@ -2,11 +2,11 @@
 import {useEffect,useMemo,useState} from 'react';
 import {KeyRound,Trash2,RefreshCw,ArrowLeft,ShieldBan,Search} from 'lucide-react';
 export default function KeysManager({admin=false}){
- const [keys,setKeys]=useState([]),[selected,setSelected]=useState([]),[filter,setFilter]=useState(''),[target,setTarget]=useState(''),[blocked,setBlocked]=useState(false);
+ const [keys,setKeys]=useState([]),[selected,setSelected]=useState([]),[filter,setFilter]=useState(''),[target,setTarget]=useState(typeof window!=='undefined'&&new URLSearchParams(window.location.search).get('user')||''),[blocked,setBlocked]=useState(false);
  const [busy,setBusy]=useState(false),[error,setError]=useState(''),[notice,setNotice]=useState('');
  const [mode,setMode]=useState('all');
  async function request(path,options){const r=await fetch(path,{cache:'no-store',...options});const j=await r.json();if(!r.ok)throw Error(j.error||'Falha na solicitação');return j}
- async function load(){setBusy(true);try{const q=admin?(target?'?user='+encodeURIComponent(target):'?scope=all'):'';const result=await request('/api/keys'+q);setKeys(result.keys||[]);setSelected([]);setError('')}catch(e){setError(e.message)}finally{setBusy(false)}}
+ async function load(){setBusy(true);try{const q=admin?(target?'?user='+encodeURIComponent(target):'?scope=all'):'';const result=await request('/api/keys'+q);setKeys(result.keys||[]);setBlocked(Boolean(result.key_generation_blocked));setSelected([]);setError('')}catch(e){setError(e.message)}finally{setBusy(false)}}
  useEffect(()=>{load()},[]);
  const shown=useMemo(()=>keys.filter(k=>[k.telegram_id,k.id].some(v=>String(v).toLowerCase().includes(filter.toLowerCase()))),[keys,filter]);
  const active=shown.filter(k=>!k.revoked_at);
@@ -22,7 +22,7 @@ export default function KeysManager({admin=false}){
   }
   setBusy(true);setNotice('');setError('');
   try{
-   const payload={all,ids,confirm:'DELETE KEY',...(admin&&target?{user:target}:{}),...(doubleConfirm?{doubleConfirm}:{})};
+   const payload={all,ids,scope:admin&&!target?'all':'user',confirm:'DELETE KEY',...(admin&&target?{user:target}:{}),...(doubleConfirm?{doubleConfirm}:{})};
    const result=await request('/api/keys',{method:'DELETE',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
    setNotice(result.revoked+' key(s) revogada(s). Para voltar a acessar, gere outra key pelo bot.');
    await load();
