@@ -76,6 +76,7 @@ async function subscribe(id,enabled){
 const menu=[
  [{text:'🔑 Gerar Key',callback_data:'key'},{text:'👤 Minha Conta',callback_data:'account'}],
  [{text:'💳 Créditos',callback_data:'credits'},{text:'📊 Limites',callback_data:'limits'}],
+ [{text:'🟢 Status',callback_data:'status'},{text:'📖 Ajuda',callback_data:'help'}],
  [{text:'📜 Histórico',callback_data:'history'},{text:'➕ Recarga',callback_data:'recharge'}],
  [{text:'🖼 Atualizar Foto',callback_data:'photo'},{text:'✏️ Atualizar Nome',callback_data:'name'}],
  [{text:'🛡 Desconectar Dispositivos',callback_data:'disconnect'}],
@@ -227,6 +228,13 @@ async function mainAction(action,chatId,id,from){
   case 'menu':return intro(chatId,from?.first_name);
   case 'key':return issueKey(chatId,id,from);
   case 'account':return account(chatId,id);
+  case 'status':{
+   const settings=await db('mc_settings?key=eq.maintenance&select=value');
+   const isMaintenance=settings[0]?.value?.enabled===true;
+   return chat(chatId,'🟢 STATUS DA CENTRAL\n\nSite: '+(isMaintenance?'Em manutenção':'Online')+'\nTelegram: conectado\n\nLink do site: '+LOGIN,{reply_markup:{inline_keyboard:[[{text:'🌐 Abrir site',url:await externalLoginUrl(id)}],[{text:'⬅️ Menu',callback_data:'menu'}]]}});
+  }
+  case 'telegram_id':return chat(chatId,'🪪 SEU TELEGRAM ID\n\nID: '+id+'\n\nEste identificador vincula sua conta à central.',{reply_markup:{inline_keyboard:[[{text:'⬅️ Menu',callback_data:'menu'}]]}});
+  case 'help':return chat(chatId,'📖 AJUDA — MANDRACKE CENTER\n\n/start — menu principal\n/key — gerar nova key\n/conta — plano, saldo e conta\n/creditos — consultar créditos\n/limites — limites do plano\n/historico — recargas\n/recarga 100 — solicitar créditos\n/status — situação do sistema\n/id — identificar sua conta\n/pararavisos — cancelar comunicados\n/receberavisos — voltar a receber\n\nPara falar com a equipe, envie uma mensagem comum ao bot.',{reply_markup:{inline_keyboard:[[{text:'⬅️ Menu',callback_data:'menu'}]]}});
   case 'credits':return credits(chatId,id);
   case 'limits':return limits(chatId,id);
   case 'history':return history(chatId,id);
@@ -248,7 +256,7 @@ async function mainAction(action,chatId,id,from){
 }
 function asAction(text){
  const cmd=tidyCommand(text);
- return ({'/start':'start','/menu':'menu','/key':'key','/gerarkey':'key','/conta':'account','/creditos':'credits','/limites':'limits','/historico':'history','/recarga':'recharge','/grupo':'group','/suporte':'support','/nome':'name','/foto':'photo','/dispositivos':'disconnect','/help':'menu','/admin':'admin','/mensagens':'admin_inbox','/manutencao':'admin_maintenance','/avisos':'admin_announcements'})[cmd]||null;
+ return ({'/start':'start','/menu':'menu','/key':'key','/gerarkey':'key','/conta':'account','/creditos':'credits','/limites':'limits','/historico':'history','/recarga':'recharge','/grupo':'group','/suporte':'support','/nome':'name','/foto':'photo','/dispositivos':'disconnect','/help':'help','/ajuda':'help','/status':'status','/id':'telegram_id','/admin':'admin','/mensagens':'admin_inbox','/manutencao':'admin_maintenance','/avisos':'admin_announcements'})[cmd]||null;
 }
 export async function POST(req){
  const secret=process.env.TELEGRAM_WEBHOOK_SECRET;
