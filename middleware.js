@@ -52,7 +52,7 @@ export async function middleware(req){
  }
  if(admin)return NextResponse.next();
  if(path==='/login'||path==='/api/member/login')return NextResponse.next();
- if(memberOK&&(path==='/member'||path.startsWith('/member/')||path.startsWith('/api/member/')||path==='/api/keys'||path==='/api/modules'||path==='/api/ui/preferences'||path==='/api/store'||path==='/member/store'||path==='/api/member/notifications'||path==='/member/notifications'))return NextResponse.next();
+ if(memberOK&&(path==='/member'||path.startsWith('/member/')||path.startsWith('/api/member/')||path==='/api/keys'||path==='/api/modules'||path==='/api/ui/preferences'||path==='/api/store'||path==='/member/store'||path==='/api/member/notifications'||path==='/api/member/profile'||path==='/member/notifications'))return NextResponse.next();
  if(path.startsWith('/api/'))return NextResponse.json({error:'Não autorizado'},{status:401});
  return NextResponse.redirect(new URL(memberOK?'/member':'/login',req.url));
 }
