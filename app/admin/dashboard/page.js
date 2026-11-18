@@ -1,10 +1,11 @@
 'use client';
-import {useEffect,useMemo,useState} from 'react';
-import {LayoutDashboard,Users,Wallet,ChartNoAxesCombined,Settings,History,PanelLeftClose,PanelLeft,Search,ChevronDown,MoreVertical,Pin,GripVertical,RefreshCw,ArrowUpRight,Shield,LogOut,ExternalLink,Clock3,CheckCircle2,MessageCircle,Menu,Filter,Coins,SlidersHorizontal,KeyRound,MonitorCog} from 'lucide-react';
+import {useEffect,useMemo,useRef,useState} from 'react';
+import {LayoutDashboard,Users,Wallet,ChartNoAxesCombined,Settings,History,PanelLeftClose,PanelLeft,Search,ChevronDown,MoreVertical,Pin,GripVertical,RefreshCw,ArrowUpRight,Shield,LogOut,ExternalLink,Clock3,CheckCircle2,MessageCircle,Menu,Filter,Coins,SlidersHorizontal,KeyRound,MonitorCog,Settings2,FileText,Globe,Database} from 'lucide-react';
 
 const groups=[
  {name:'VISÃO GERAL',items:[{id:'overview',label:'Dashboard',icon:LayoutDashboard},{id:'users',label:'Usuários',icon:Users},{id:'recharges',label:'Recargas',icon:Wallet}]},
- {name:'ADMINISTRAÇÃO',items:[{id:'operations',label:'Central de Operações',icon:MonitorCog},{id:'settings',label:'Configurações',icon:Settings},{id:'legacy',label:'Todos os módulos',icon:SlidersHorizontal}]}
+ {name:'FERRAMENTAS ORIGINAIS',items:[{id:'extractor',label:'Extrator',icon:FileText},{id:'formatcc',label:'Formatar dados',icon:FileText},{id:'formatlogin',label:'Formatar login',icon:FileText},{id:'bin',label:'BIN Lookup',icon:Database},{id:'ip',label:'IP Locator',icon:Globe},{id:'geradorbr',label:'Gerador BR',icon:Settings},{id:'geradorgg',label:'Gerador GG',icon:Settings}]},
+ {name:'ADMINISTRAÇÃO',items:[{id:'modules',label:'Módulos ON / OFF',icon:Settings2},{id:'operations',label:'Central de Operações',icon:MonitorCog},{id:'settings',label:'Configurações',icon:Settings},{id:'legacy',label:'Painel original completo',icon:SlidersHorizontal}]}
 ];
 const initialOrder=Object.fromEntries(groups.map(g=>[g.name,g.items.map(x=>x.id)]));
 const fmt=n=>Number(n||0).toLocaleString('pt-BR');
@@ -16,8 +17,24 @@ export default function AdminDashboard(){
  const [users,setUsers]=useState([]),[recharges,setRecharges]=useState([]),[central,setCentral]=useState(null),[error,setError]=useState(''),[busy,setBusy]=useState(false);
  const [query,setQuery]=useState('');
  const all=groups.flatMap(g=>g.items);
- useEffect(()=>{try{const preferences=JSON.parse(localStorage.getItem('mandracke_admin_nav_v1')||'{}');if(preferences.order)setOrder({...initialOrder,...preferences.order});if(Array.isArray(preferences.pins))setPins(preferences.pins);setCollapsed(preferences.collapsed===true)}catch{}reload()},[]);
- useEffect(()=>{try{localStorage.setItem('mandracke_admin_nav_v1',JSON.stringify({order,pins,collapsed}))}catch{}},[order,pins,collapsed]);
+ const hydrated=useRef(false);
+ useEffect(()=>{
+  async function hydrate(){try{
+   const response=await fetch('/api/ui/preferences',{cache:'no-store'});
+   if(response.ok){const data=await response.json(),prefs=data.preferences?.admin_sidebar||{};
+    if(prefs.order&&typeof prefs.order==='object')setOrder({...initialOrder,...prefs.order});
+    if(Array.isArray(prefs.pins))setPins(prefs.pins);
+    if(typeof prefs.collapsed==='boolean')setCollapsed(prefs.collapsed);
+   }
+  }catch(e){console.warn('Preferências indisponíveis')}
+  finally{hydrated.current=true}}
+  hydrate();reload();
+ },[]);
+ useEffect(()=>{
+  if(!hydrated.current)return;
+  const timer=setTimeout(()=>fetch('/api/ui/preferences',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({preferences:{admin_sidebar:{order,pins,collapsed}}})}).catch(()=>{}),350);
+  return()=>clearTimeout(timer);
+ },[order,pins,collapsed]);
  async function request(path,method='GET',body){
   const r=await fetch(path,{method,cache:'no-store',headers:body?{'Content-Type':'application/json'}:{},body:body?JSON.stringify(body):undefined});
   const payload=await r.json();if(!r.ok)throw Error(payload.error||'Falha na requisição');return payload;
@@ -29,7 +46,7 @@ export default function AdminDashboard(){
  async function signout(){await fetch('/api/logout',{method:'POST'});location.replace('/login?admin=1')}
  const choices=group=>{const ids=order[group.name]||[];return group.items.slice().sort((a,b)=>{const i=ids.indexOf(a.id),j=ids.indexOf(b.id);return(i<0?99:i)-(j<0?99:j)})};
  function reorder(group,id,to){const current=choices(group).map(x=>x.id),from=current.indexOf(id),dest=current.indexOf(to);if(from<0||dest<0)return;current.splice(dest,0,current.splice(from,1)[0]);setOrder(s=>({...s,[group.name]:current}))}
- function link(id){setSection(id);setMenu(null);setMobile(false);if(id==='legacy')location.assign('/panel');if(id==='operations')location.assign('/admin/central');if(id==='settings')location.assign('/admin/central')}
+ function link(id){setSection(id);setMenu(null);setMobile(false);if(id==='legacy')location.assign('/panel');if(id==='modules')location.assign('/admin/modules');if(id==='operations')location.assign('/admin/central');if(id==='settings')location.assign('/admin/central');if(['extractor','formatcc','formatlogin','bin','ip','geradorbr','geradorgg'].includes(id))location.assign('/panel?module='+encodeURIComponent(id))}
  function itemUI(item,group,duplicate=false){const Icon=item.icon;return <div key={(duplicate?'pin:':'')+item.id} draggable={!duplicate} onDragStart={e=>e.dataTransfer.setData('text/plain',JSON.stringify({group:group?.name,id:item.id}))} onDragOver={e=>e.preventDefault()} onDrop={e=>{e.preventDefault();try{const x=JSON.parse(e.dataTransfer.getData('text/plain'));if(x.group===group?.name)reorder(group,x.id,item.id)}catch{}}} className="group relative mb-1 flex items-center">
   <button onClick={()=>link(item.id)} title={item.label} className={'flex h-[39px] w-full items-center gap-3 !rounded-lg !border !py-2 !font-medium transition-colors '+(collapsed?'!justify-center !px-2':'!pl-3 !pr-10')+' '+(section===item.id?'!border-[#554461] !bg-[#2a262d] !text-white':'!border-transparent !bg-transparent !text-[#aaa5ae] hover:!bg-[#252128] hover:!text-white')}><Icon size={17} className="shrink-0"/>{!collapsed&&<span className="truncate text-[12px]">{item.label}</span>}</button>
   {!collapsed&&<div className="absolute right-0 flex items-center"><button aria-label={'Opções '+item.label} onClick={e=>{e.stopPropagation();setMenu(menu===item.id?null:item.id)}} className="!bg-transparent !p-[7px] text-[#a39aaa] hover:!text-white"><MoreVertical size={15}/></button></div>}
@@ -49,7 +66,7 @@ export default function AdminDashboard(){
  </aside>
  <div className="min-w-0 flex-1"><header className="flex h-[70px] items-center justify-between border-b border-[#2e2831] bg-[#171519] px-5 md:px-8"><div className="flex items-center gap-3"><button className="!bg-transparent !p-1 md:hidden" aria-label="Abrir menu" onClick={()=>setMobile(true)}><Menu size={20}/></button><span className="text-[13px] font-medium">Administração</span><span className="text-xs text-[#716b76]">/</span><span className="text-xs text-[#ab9ab9]">{section==='users'?'Usuários':section==='recharges'?'Recargas':'Dashboard'}</span></div><div className="flex items-center gap-3"><span className="hidden rounded-md border border-[#52405c] bg-[#2d2436] px-2 py-1 text-[10px] text-[#d1b5e3] sm:inline">ADMIN</span><button onClick={reload} title="Atualizar" className="!bg-transparent !p-2"><RefreshCw size={17}/></button><div className="grid h-9 w-9 place-items-center rounded-full border border-[#5a4562] bg-[#35243f] text-xs">MC</div></div></header>
  <main className="mx-auto max-w-[1380px] space-y-6 px-5 py-8 md:px-8">
- <div className="flex flex-wrap items-end justify-between gap-3"><div><div className="mb-2 text-[10px] font-semibold uppercase tracking-[.2em] text-[#a887c4]">MANDRACKE CENTER · ADMIN</div><h1 className="!m-0 text-[29px] font-semibold">{section==='users'?'Gerenciamento de usuários':section==='recharges'?'Solicitações de recarga':'Visão geral'}</h1><p className="mt-2 text-xs text-[#908995]">Dados reais vinculados ao Telegram e ao Supabase.</p></div><a className="flex items-center gap-2 rounded-xl border border-[#4f3e55] bg-[#231e29] px-4 py-2 text-xs text-[#d9bee9]" href="/panel">Todos os módulos <ExternalLink size={13}/></a></div>
+ <div className="flex flex-wrap items-end justify-between gap-3"><div><div className="mb-2 text-[10px] font-semibold uppercase tracking-[.2em] text-[#a887c4]">MANDRACKE CENTER · ADMIN</div><h1 className="!m-0 text-[29px] font-semibold">{section==='users'?'Gerenciamento de usuários':section==='recharges'?'Solicitações de recarga':'Visão geral'}</h1><p className="mt-2 text-xs text-[#908995]">Dados reais vinculados ao Telegram e ao Supabase.</p></div><div className="flex flex-wrap gap-2"><a href="/admin/modules" className="flex items-center gap-2 rounded-xl border border-[#72538c] bg-[#382645] px-4 py-2 text-xs text-[#e6cbff]"><Settings2 size={14}/> Editar módulos ON / OFF</a><a className="flex items-center gap-2 rounded-xl border border-[#4f3e55] bg-[#231e29] px-4 py-2 text-xs text-[#d9bee9]" href="/panel">Todos os módulos <ExternalLink size={13}/></a></div></div>
  {error&&<div className="rounded-xl border border-[#693953] bg-[#341b2a] p-4 text-sm" role="alert">{error}</div>}
  <div className="grid grid-cols-2 gap-3 lg:grid-cols-4"><Stat label="Usuários cadastrados" value={users.length} icon={Users}/><Stat label="FREE" value={planCounts.FREE} icon={Shield}/><Stat label="PRO" value={planCounts.PRO} icon={Wallet}/><Stat label="PREMIUM" value={planCounts.PREMIUM} icon={Coins}/></div>
  {(section==='overview'||section==='users')&&<section className="overflow-hidden rounded-2xl border border-[#363039] bg-[#1a171d]"><div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#332d36] px-5 py-4"><div><h2 className="text-[15px] font-semibold">Usuários</h2><p className="mt-1 text-xs text-[#8c8592]">Gerencie planos, créditos e acessos</p></div><div className="flex items-center gap-2 rounded-xl border border-[#4c4250] bg-[#242028] px-3"><Search size={15} className="text-[#b4a1c0]"/><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Buscar nome ou ID..." className="w-48 !bg-transparent !py-3 text-xs !text-white outline-none"/></div></div>
