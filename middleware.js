@@ -12,7 +12,7 @@ export async function middleware(req){
    const api=process.env.SUPABASE_URL,token=process.env.SUPABASE_SERVICE_ROLE_KEY;
    if(api&&token){
     const headers={apikey:token,...(!token.startsWith('sb_secret_')?{Authorization:'Bearer '+token}:{})};
-    const response=await fetch(api.replace(/\\/$/,'')+'/rest/v1/mc_settings?key=eq.maintenance&select=value',{headers,cache:'no-store'});
+    const response=await fetch(api.replace(/\/$/,'')+'/rest/v1/mc_settings?key=eq.maintenance&select=value',{headers,cache:'no-store'});
     if(response.ok){
      const rows=await response.json();
      if(rows[0]?.value?.enabled===true){
