@@ -118,8 +118,9 @@ async function issueKey(chatId,telegramId,from){
  await chat(chatId,
  '🔑 MANDRACKE CENTER — SUA KEY\n\n'+
  'Sua key permanente:\n'+key+'\n\n'+
- '🌐 Login: '+LOGIN+'\n\n'+
- 'Copie a key e cole no campo de acesso do site. Ela permanece válida até você solicitar outra ou o administrador revogá-la.'+
+ '🌐 Toque no botão abaixo para abrir o site já conectado ao seu Telegram.\n'+
+ 'Se abrir no navegador externo, entre com a key em: '+LOGIN+'\n\n'+
+ 'A key permanece válida até você solicitar outra ou o administrador revogá-la.'+
  when+'\n\n⚠️ Não compartilhe sua key. Solicitar outra substitui a anterior.',
  {reply_markup:{inline_keyboard:[
  [{text:'🌐 Entrar automaticamente pelo Telegram',web_app:{url:TELEGRAM_APP}}],
