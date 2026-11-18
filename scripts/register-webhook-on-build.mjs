@@ -50,6 +50,8 @@ if(process.env.VERCEL_ENV!=='production'){
      const adminCommands=[
       ...commands,
       {command:'admin',description:'Abrir administração'},
+      {command:'gerenciarcreditos',description:'Gerenciar créditos de usuários'},
+      {command:'pendentes',description:'Aprovar recargas pendentes'},
       {command:'manutencao',description:'Controlar manutenção do site'},
       {command:'mensagens',description:'Consultar mensagens recebidas'},
       {command:'avisos',description:'Gerenciar comunicados'},
