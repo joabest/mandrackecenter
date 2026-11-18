@@ -189,6 +189,8 @@ async function history(chatId,id){
  await chat(chatId,'📜 HISTÓRICO DE RECARGAS\n\n'+(lines.length?lines.join('\n'):'Nenhuma solicitação registrada.'),{reply_markup:{inline_keyboard:[[{text:'⬅️ Menu',callback_data:'menu'}]]}});
 }
 async function recharge(chatId,id,amount){
+ const flags=await db('mc_module_settings?module_id=eq.credits&select=enabled,off_message');
+ if(flags[0]?.enabled===false)return chat(chatId,'⛔ RECARGAS — OFF\n\n'+(flags[0].off_message||'Esta função está temporariamente indisponível.'),{reply_markup:{inline_keyboard:[[{text:'⬅️ Menu',callback_data:'menu'}]]}});
  const u=await getUser(id);
  if(!u||u.enabled===false)return chat(chatId,'Conta inexistente ou desativada.');
  if(!Number.isSafeInteger(amount)||amount<1||amount>100000)return chat(chatId,'Quantidade inválida. Use /recarga 100 (de 1 a 100000 créditos).');
