@@ -13,6 +13,7 @@ const adminMenu=()=>({inline_keyboard:[
  [{text:'💳 Recargas pendentes',callback_data:'admin_recharges'}],
  [{text:'🔧 Manutenção',callback_data:'admin_maintenance'},{text:'📨 Mensagens',callback_data:'admin_inbox'}],
  [{text:'📣 Avisos',callback_data:'admin_announcements'}],
+ [{text:'⚙️ Módulos ON / OFF',url:'https://mandracke.vercel.app/admin/modules'}],
  [{text:'📈 Central web',url:'https://mandracke.vercel.app/admin/central'}],
  [{text:'🌐 Abrir painel administrativo',url:'https://mandracke.vercel.app/login?admin=1'}],
  [{text:'⬅️ Menu principal',callback_data:'menu'}]
