@@ -12,6 +12,7 @@ const menu=[
  [{text:'📜 Histórico',callback_data:'history'},{text:'➕ Recarga',callback_data:'recharge'}],
  [{text:'🖼 Atualizar Foto',callback_data:'photo'},{text:'✏️ Atualizar Nome',callback_data:'name'}],
  [{text:'🛡 Desconectar Dispositivos',callback_data:'disconnect'}],
+ [{text:'👥 Grupo da Central',callback_data:'group'}],
  [{text:'🌐 Entrar no Painel',url:LOGIN},{text:'🆘 Suporte',url:SUPPORT}]
 ];
 
