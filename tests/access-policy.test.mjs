@@ -19,6 +19,9 @@ test('only administrators can use admin modules',()=>{
 test('module OFF overrides admin privilege',()=>{
  assert.equal(moduleAccess({moduleId:'extractor',enabled:false,credits:1000,isAdmin:true}),'off');
 });
-test('legacy member execution is not falsely enabled just by adding credits',()=>{
- assert.equal(moduleAccess({moduleId:'extractor',enabled:true,credits:1000,isAdmin:false}),'not_integrated');
+test('funded members can access enabled non-admin modules',()=>{
+ for(const m of modules.filter(x=>!['users','telegram','settings'].includes(x.id)))assert.equal(moduleAccess({moduleId:m.id,enabled:true,credits:1000,isAdmin:false}),'available');
+});
+test('zero-credit member is offered a recharge path',()=>{
+ assert.equal(moduleAccess({moduleId:'extractor',enabled:true,credits:0,isAdmin:false}),'no_credits');
 });
