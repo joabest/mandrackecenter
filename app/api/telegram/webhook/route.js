@@ -277,7 +277,7 @@ export async function POST(req){
    if(command==='start'){
     const existing=await getUser(id);
     if(!existing)await issueKey(chatId,id,from);
-    await db('mc_users?telegram_id=eq.'+id,{method:'PATCH',body:{last_bot_seen_at:new Date().toISOString(),announcements_enabled:true},prefer:'return=minimal'});
+    await db('mc_users?telegram_id=eq.'+id,{method:'PATCH',body:{last_bot_seen_at:new Date().toISOString()},prefer:'return=minimal'});
     await trackEvent(id,'bot_start');
     if(existing)await intro(chatId,from?.first_name);
     else await intro(chatId,from?.first_name);
