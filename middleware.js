@@ -12,7 +12,9 @@ async function verifiedTelegramAdmin(req,secret){
   const res=await fetch(url.replace(/\/$/,'')+'/rest/v1/mc_users?telegram_id=eq.'+session.id+'&select=session_version,enabled',{headers,cache:'no-store'});
   if(!res.ok)return {session,memberOK:false,telegramAdmin:false};
   const rows=await res.json();
-  const memberOK=rows.length===1&&rows[0].enabled===true&&Number(rows[0].session_version)===session.version;
+  const active=rows.length===1&&rows[0].enabled===true&&Number(rows[0].session_version)===session.version;
+  let memberOK=false;
+  if(active){const keys=await fetch(url.replace(/\/$/,'')+'/rest/v1/mc_login_keys?telegram_id=eq.'+session.id+'&revoked_at=is.null&select=id&limit=1',{headers,cache:'no-store'});memberOK=keys.ok&&(await keys.json()).length>0;}
   // Never trust a username, URL parameter, or unverified Telegram ID for administrator access.
   const telegramAdmin=memberOK&&Boolean(process.env.ADMIN_TELEGRAM_ID)&&session.id===process.env.ADMIN_TELEGRAM_ID;
   return {session,memberOK,telegramAdmin};
@@ -50,7 +52,7 @@ export async function middleware(req){
  }
  if(admin)return NextResponse.next();
  if(path==='/login'||path==='/api/member/login')return NextResponse.next();
- if(memberOK&&(path==='/member'||path.startsWith('/api/member/')||path==='/api/modules'||path==='/api/ui/preferences'))return NextResponse.next();
+ if(memberOK&&(path==='/member'||path.startsWith('/member/')||path.startsWith('/api/member/')||path==='/api/keys'||path==='/api/modules'||path==='/api/ui/preferences'))return NextResponse.next();
  if(path.startsWith('/api/'))return NextResponse.json({error:'Não autorizado'},{status:401});
  return NextResponse.redirect(new URL(memberOK?'/member':'/login',req.url));
 }
