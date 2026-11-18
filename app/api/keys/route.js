@@ -46,9 +46,8 @@ export async function DELETE(req){
   const owner=b.user==null?null:String(b.user);
   if(owner!==null&&!/^\d{1,20}$/.test(owner))return bad('Usuário inválido');
   if(owner!==null&&!user.admin&&owner!==user.id)return bad('Sem permissão',403);
-  if(!user.admin&&owner===null&&b.all===true)return bad('Sem permissão',403);
   if(!user.admin&&b.all!==true&&!Array.isArray(b.ids))return bad('Seleção inválida');
-  if(!user.admin&&b.all===true&&owner!==user.id)return bad('Sem permissão',403);
+  if(!user.admin&&b.all===true&&owner!==null&&owner!==user.id)return bad('Sem permissão',403);
   const effectiveOwner=owner??(user.admin?null:user.id);
   if(!user.admin&&effectiveOwner!==user.id)return bad('Sem permissão',403);
   if(user.admin&&owner===null&&b.all!==true&&b.scope!=='all')return bad('Selecione o escopo',400);
