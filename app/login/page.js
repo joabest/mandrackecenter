@@ -9,7 +9,7 @@ export default function Login(){
   try{
    const r=await fetch(mode==='admin'?'/api/login':'/api/member/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(mode==='admin'?{password:pwd}:{key:key.trim()})});
    const d=await r.json();if(!r.ok)throw Error(d.error||'Falha de autenticação');
-   location.replace(mode==='admin'?'/admin/dashboard':'/member');
+   location.replace(d.redirect||(mode==='admin'?'/admin/dashboard':'/member'));
   }catch(e){setError(e.message)}finally{setBusy(false)}
  }
  return <main className="auth"><div className="login"><div className="logo">⬡ <span>MANDRACKE <b>CENTER</b></span></div><div className="eyebrow" style={{marginTop:38}}>ACESSO PROTEGIDO</div><h1>{mode==='admin'?'Administração':'Entrar com Telegram'}</h1>
