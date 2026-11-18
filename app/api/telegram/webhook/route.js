@@ -9,6 +9,9 @@ const isAdmin=id=>Boolean(process.env.ADMIN_TELEGRAM_ID)&&String(id)===process.e
 const adminMenu=()=>({inline_keyboard:[
  [{text:'📊 Resumo administrativo',callback_data:'admin_summary'},{text:'👥 Usuários',callback_data:'admin_users'}],
  [{text:'💳 Recargas pendentes',callback_data:'admin_recharges'}],
+ [{text:'🔧 Manutenção',callback_data:'admin_maintenance'},{text:'📨 Mensagens',callback_data:'admin_inbox'}],
+ [{text:'📣 Avisos',callback_data:'admin_announcements'}],
+ [{text:'📈 Central web',url:'https://mandracke.vercel.app/admin/central'}],
  [{text:'🌐 Abrir painel administrativo',url:'https://mandracke.vercel.app/login'}],
  [{text:'⬅️ Menu principal',callback_data:'menu'}]
 ]});
@@ -31,6 +34,29 @@ async function adminAction(action,chatId,id){
   const lines=users.map(x=>'• '+(x.first_name||x.username||'Usuário')+' — ID '+x.telegram_id+' — '+x.plan+' — '+x.credits+' créditos'+(x.enabled?'':' (bloqueado)'));
   return chat(chatId,'👥 ÚLTIMOS USUÁRIOS\n\n'+(lines.join('\n')||'Nenhum usuário registrado.')+'\n\nPara editar plano e créditos, use o painel administrativo.',{reply_markup:adminMenu()});
  }
+ if(action==='admin_maintenance'){
+  const settings=await db('mc_settings?key=eq.maintenance&select=value');
+  const enabled=settings[0]?.value?.enabled===true;
+  return chat(chatId,'🔧 MANUTENÇÃO\n\nEstado: '+(enabled?'ATIVA':'SITE ONLINE')+'\n\nConfirme a alteração:',{reply_markup:{inline_keyboard:[
+   [{text:enabled?'✅ Reabrir site':'🔧 Ativar manutenção',callback_data:enabled?'admin_maintenance_off':'admin_maintenance_on'}],
+   [{text:'⬅️ Admin',callback_data:'admin'}]
+  ]}});
+ }
+ if(action==='admin_maintenance_on'||action==='admin_maintenance_off'){
+  const enabled=action.endsWith('_on');
+  const settings=await db('mc_settings?key=eq.maintenance&select=value');
+  const message=settings[0]?.value?.message||'Estamos em manutenção. Voltaremos em breve.';
+  await db('mc_settings?key=eq.maintenance',{method:'PATCH',body:{value:{enabled,message}},prefer:'return=minimal'});
+  return chat(chatId,'✅ '+(enabled?'Manutenção ativada. Visitantes verão a tela de manutenção.':'Manutenção desativada. Site reaberto.'),{reply_markup:adminMenu()});
+ }
+ if(action==='admin_inbox'){
+  const items=await db('mc_inbox?select=id,telegram_id,message_text,created_at&order=created_at.desc&limit=8');
+  const lines=items.map(x=>'• #'+x.id+' · ID '+x.telegram_id+'\n'+x.message_text.slice(0,180));
+  return chat(chatId,'📨 MENSAGENS RECEBIDAS\n\n'+(lines.join('\n\n')||'Nenhuma mensagem.')+'\n\nAcesse o painel para visualizar as demais.',{reply_markup:adminMenu()});
+ }
+ if(action==='admin_announcements'){
+  return chat(chatId,'📣 AVISOS AOS USUÁRIOS\n\nAbra a Central web para criar e enviar avisos em lotes, ou use /avisar seguido do texto para registrar um novo aviso.\n\nExemplo: /avisar Atualização da plataforma às 20h.\n\nSomente usuários inscritos que iniciaram o bot receberão avisos.',{reply_markup:adminMenu()});
+ }
  if(action==='admin_recharges'){
   const rows=await db('mc_recharges?status=eq.pending&select=id,telegram_id,credits_requested,created_at&order=created_at.asc&limit=12');
   if(!rows.length)return chat(chatId,'✅ Nenhuma recarga pendente.',{reply_markup:adminMenu()});
@@ -39,6 +65,12 @@ async function adminAction(action,chatId,id){
  }
 }
 
+async function trackEvent(id,event_type){
+ try{await db('mc_usage_events',{method:'POST',body:{telegram_id:id,event_type},prefer:'return=minimal'})}catch(e){console.warn('Usage event recording failed')}
+}
+async function subscribe(id,enabled){
+ await db('mc_users?telegram_id=eq.'+id,{method:'PATCH',body:{announcements_enabled:enabled},prefer:'return=minimal'});
+}
 const menu=[
  [{text:'🔑 Gerar Key',callback_data:'key'},{text:'👤 Minha Conta',callback_data:'account'}],
  [{text:'💳 Créditos',callback_data:'credits'},{text:'📊 Limites',callback_data:'limits'}],
@@ -70,7 +102,7 @@ async function getUser(id){
 async function intro(id,name){
  const u=await getUser(id);
  const state=u?'Seu cadastro já está ativo.':'Use “🔑 Gerar Key” para ativar sua conta.';
- await chat(id,'🟣 MANDRACKE CENTER\n\nOlá, '+(name||'usuário')+'! Bem-vindo à central.\n'+state+'\n\nSelecione uma opção abaixo:',{reply_markup:keyboard(isAdmin(id)?[[{text:'🛡 Administração',callback_data:'admin'}]]:[])});
+ await chat(id,'🟣 MANDRACKE CENTER\n\nOlá, '+(name||'usuário')+'! Bem-vindo à central.\n'+state+'\n\nSelecione uma opção abaixo.\n\n📢 Você poderá receber avisos da central. Para cancelar: /pararavisos.',{reply_markup:keyboard(isAdmin(id)?[[{text:'🛡 Administração',callback_data:'admin'}]]:[])});
 }
 async function issueKey(chatId,telegramId,from){
  const key=generateKey();
@@ -191,7 +223,7 @@ async function mainAction(action,chatId,id,from){
 }
 function asAction(text){
  const cmd=tidyCommand(text);
- return ({'/start':'start','/menu':'menu','/key':'key','/gerarkey':'key','/conta':'account','/creditos':'credits','/limites':'limits','/historico':'history','/recarga':'recharge','/grupo':'group','/suporte':'support','/nome':'name','/foto':'photo','/dispositivos':'disconnect','/help':'menu','/admin':'admin'})[cmd]||null;
+ return ({'/start':'start','/menu':'menu','/key':'key','/gerarkey':'key','/conta':'account','/creditos':'credits','/limites':'limits','/historico':'history','/recarga':'recharge','/grupo':'group','/suporte':'support','/nome':'name','/foto':'photo','/dispositivos':'disconnect','/help':'menu','/admin':'admin','/mensagens':'admin_inbox','/manutencao':'admin_maintenance','/avisos':'admin_announcements'})[cmd]||null;
 }
 export async function POST(req){
  const secret=process.env.TELEGRAM_WEBHOOK_SECRET;
@@ -205,13 +237,29 @@ export async function POST(req){
  try{
   if(callback){
    await telegram('answerCallbackQuery',{callback_query_id:callback.id});
+   await trackEvent(id,'bot_action');
    await mainAction(String(callback.data||''),chatId,id,from);
   }else{
    const text=String(msg.text||''),command=asAction(text);
    if(command==='start'){
     const existing=await getUser(id);
     if(!existing)await issueKey(chatId,id,from);
+    await db('mc_users?telegram_id=eq.'+id,{method:'PATCH',body:{last_bot_seen_at:new Date().toISOString(),announcements_enabled:true},prefer:'return=minimal'});
+    await trackEvent(id,'bot_start');
+    if(existing)await intro(chatId,from?.first_name);
     else await intro(chatId,from?.first_name);
+   }else if(tidyCommand(text)==='/pararavisos'){
+    await subscribe(id,false);await chat(chatId,'🔕 Você não receberá novos avisos da central. Para voltar a receber, envie /receberavisos.');
+   }else if(tidyCommand(text)==='/receberavisos'){
+    await subscribe(id,true);await chat(chatId,'🔔 Avisos da central ativados.');
+   }else if(tidyCommand(text)==='/avisar'){
+    if(!isAdmin(id))return NextResponse.json({error:'Não autorizado'},{status:403});
+    const notice=text.slice(text.indexOf(' ')+1).trim();
+    if(notice.length<3||notice.length>1500||!text.includes(' '))await chat(chatId,'Use /avisar seguido do texto (3 a 1500 caracteres). Para enviar, abra a Central web.');
+    else{
+      const announcement=await db('rpc/mc_create_announcement',{method:'POST',body:{p_text:notice}});
+      await chat(chatId,'📣 Aviso #'+announcement+' registrado. Para disparar os lotes, use a Central web.\nhttps://mandracke.vercel.app/admin/central');
+    }
    }else if(command==='recharge'&&text.trim().split(/\s+/).length>1){
     await recharge(chatId,id,Number(text.trim().split(/\s+/)[1]));
    }else if(command==='name'&&text.trim().length>5){
@@ -223,7 +271,16 @@ export async function POST(req){
     if(prompt.startsWith('✏️ ATUALIZAR NOME'))await updateName(chatId,id,msg.text);
     else if(prompt.startsWith('🖼 ATUALIZAR FOTO'))await updatePhoto(chatId,id,msg.photo);
     else await intro(chatId,from?.first_name);
-   }else await intro(chatId,from?.first_name);
+   }else{
+    if(!await getUser(id)){await issueKey(chatId,id,from)}
+    else{
+      const body=String(msg.text||'').trim().slice(0,2000);
+      if(body){
+       await db('mc_inbox',{method:'POST',body:{telegram_id:id,message_text:body},prefer:'return=minimal'});
+       await chat(chatId,'📨 Sua mensagem foi recebida pela central. O administrador poderá visualizá-la no painel. Para consultar os recursos, use /start.');
+      }else await intro(chatId,from?.first_name);
+    }
+   }
   }
  }catch(e){
   console.error('Telegram webhook action failed',String(e));
