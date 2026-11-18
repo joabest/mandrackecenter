@@ -42,6 +42,27 @@ if(process.env.VERCEL_ENV!=='production'){
     });
     const result=await c.json();
     console.log(result.ok?'Telegram: commands registered':'Telegram: command registration failed');
+    const adminId=process.env.ADMIN_TELEGRAM_ID;
+    if(adminId&&/^\\d+$/.test(adminId)){
+     const adminCommands=[
+      ...commands,
+      {command:'admin',description:'Abrir administração'},
+      {command:'manutencao',description:'Controlar manutenção do site'},
+      {command:'mensagens',description:'Consultar mensagens recebidas'},
+      {command:'avisos',description:'Gerenciar comunicados'},
+      {command:'avisar',description:'Criar um comunicado'},
+      {command:'responder',description:'Responder usuário pelo Telegram ID'}
+     ];
+     try{
+      const a=await fetch('https://api.telegram.org/bot'+token+'/setMyCommands',{
+       method:'POST',headers:{'Content-Type':'application/json'},
+       body:JSON.stringify({commands:adminCommands,scope:{type:'chat',chat_id:Number(adminId)}}),
+       signal:AbortSignal.timeout(8000)
+      });
+      const v=await a.json();
+      console.log(v.ok?'Telegram: admin commands registered':'Telegram: admin commands unavailable');
+     }catch{console.warn('Telegram: failed to configure admin command scope')}
+    }
     try{
      const infoRes=await fetch('https://api.telegram.org/bot'+token+'/getWebhookInfo',{signal:AbortSignal.timeout(8000)});
      const info=await infoRes.json();
