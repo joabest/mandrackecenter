@@ -3,13 +3,13 @@ import {useEffect,useState} from 'react';
 export default function Login(){
  const [pwd,setPwd]=useState(''),[key,setKey]=useState(''),[mode,setMode]=useState('telegram');
  const [error,setError]=useState(''),[busy,setBusy]=useState(false),[config,setConfig]=useState({});
- useEffect(()=>{fetch('/api/public-config').then(r=>r.json()).then(setConfig).catch(()=>{})},[]);
+ useEffect(()=>{if(new URLSearchParams(window.location.search).get('admin')==='1')setMode('admin');fetch('/api/public-config').then(r=>r.json()).then(setConfig).catch(()=>{})},[]);
  async function submit(e){
   e.preventDefault();setBusy(true);setError('');
   try{
    const r=await fetch(mode==='admin'?'/api/login':'/api/member/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(mode==='admin'?{password:pwd}:{key:key.trim()})});
    const d=await r.json();if(!r.ok)throw Error(d.error||'Falha de autenticação');
-   location.replace(mode==='admin'?'/panel':'/member');
+   location.replace(mode==='admin'?'/admin/dashboard':'/member');
   }catch(e){setError(e.message)}finally{setBusy(false)}
  }
  return <main className="auth"><div className="login"><div className="logo">⬡ <span>MANDRACKE <b>CENTER</b></span></div><div className="eyebrow" style={{marginTop:38}}>ACESSO PROTEGIDO</div><h1>{mode==='admin'?'Administração':'Entrar com Telegram'}</h1>
