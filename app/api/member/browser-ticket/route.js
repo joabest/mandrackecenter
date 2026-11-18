@@ -13,7 +13,7 @@ export async function POST(req){
    await db('rpc/mc_refresh_admin_allowance',{method:'POST',body:{p_telegram_id:Number(id)}});
   }
   const cookie=await userCookie(id);
-  const res=NextResponse.json({ok:true,redirect:'/member'});
+  const res=NextResponse.json({ok:true,redirect:id===process.env.ADMIN_TELEGRAM_ID?'/admin/dashboard':'/member'});
   const opts={httpOnly:true,secure:process.env.NODE_ENV==='production',sameSite:'lax',path:'/',maxAge:28800};
   res.cookies.set('mandracke_member',cookie,opts);
   res.cookies.set('mandracke_source','telegram_browser',opts);
