@@ -15,6 +15,7 @@ export async function POST(req){
   const cookie=await userCookie(id);
   const res=NextResponse.json({ok:true,redirect:id===process.env.ADMIN_TELEGRAM_ID?'/admin/dashboard':'/member'});
   const opts={httpOnly:true,secure:process.env.NODE_ENV==='production',sameSite:'lax',path:'/',maxAge:28800};
+  res.cookies.set('mandracke_session','',{httpOnly:true,secure:process.env.NODE_ENV==='production',sameSite:'strict',path:'/',maxAge:0});
   res.cookies.set('mandracke_member',cookie,opts);
   res.cookies.set('mandracke_source','telegram_browser',opts);
   return res;
