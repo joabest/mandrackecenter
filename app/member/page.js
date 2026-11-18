@@ -43,7 +43,7 @@ export default function Member(){
    }catch(e){console.warn('Preferências não disponíveis')}finally{prefsHydrated.current=true}
   }
   loadPreferences();refresh();
-  fetch('/api/modules',{cache:'no-store'}).then(async r=>{if(!r.ok)throw Error('Módulos indisponíveis');return r.json()}).then(d=>{setModuleStatuses(Object.fromEntries((d.modules||[]).map(x=>[x.id,x]))) }).catch(()=>setError('Não foi possível carregar os módulos.')).finally(()=>setModuleLoading(false));
+  fetch('/api/modules',{cache:'no-store',signal:AbortSignal.timeout(12000)}).then(async r=>{if(!r.ok)throw Error('Módulos indisponíveis');return r.json()}).then(d=>{setModuleStatuses(Object.fromEntries((d.modules||[]).map(x=>[x.id,x]))) }).catch(()=>setError('Não foi possível carregar os módulos.')).finally(()=>setModuleLoading(false));
  },[]);
  useEffect(()=>{
   if(!prefsHydrated.current)return;
@@ -51,8 +51,8 @@ export default function Member(){
   return()=>clearTimeout(timer);
  },[navOrder,navPins,narrow]);
  async function refresh(){
-  try{const r=await fetch('/api/member/me',{cache:'no-store'});const out=await r.json();if(!r.ok)throw Error(out.error||'Falha ao consultar conta');setData(out);setError('')}
-  catch(e){setError(e.message)}
+  try{const r=await fetch('/api/member/me',{cache:'no-store',signal:AbortSignal.timeout(12000)});const out=await r.json();if(!r.ok)throw Error(out.error||'Falha ao consultar conta');setData(out);setError('')}
+  catch(e){setError(e.name==='TimeoutError'?'O servidor demorou demais para responder. Atualize os dados ou entre novamente.':e.message||'Falha ao carregar a conta.');}
  }
  async function recharge(e){
   e.preventDefault();setBusy(true);setNotice('');
@@ -177,7 +177,7 @@ export default function Member(){
      const names={extractor:'Extrator',formatcc:'Formatar dados',formatlogin:'Formatar login',bin:'BIN Lookup',ip:'IP Locator',geradorbr:'Gerador BR',geradorgg:'Gerador GG',zeroauth:'ZEROAUTH',preauth:'PREAUTH',zeroauthv2:'ZEROAUTH V2',amazon:'Amazon BR',drogasil:'DrogaSil'};
      return <div key={id} className="rounded-xl border border-[#40334b] bg-[#231d2a] p-4"><div className="flex items-center justify-between gap-2"><span className="text-sm font-medium">{names[id]||id}</span><span className={'rounded px-2 py-1 text-[10px] '+(status.enabled?'bg-emerald-900/30 text-emerald-300':'bg-rose-900/40 text-rose-300')}>{status.access==='no_credits'?'SEM CRÉDITOS':status.access==='admin_only'?'ADMIN':status.access==='not_integrated'?'EM PREPARAÇÃO':status.enabled?'ON':'OFF'}</span></div>
      <p className="mt-3 text-xs text-[#9e91ac]">{status.access==='no_credits'?'Visível para conhecer. Bloqueado por falta de créditos.':status.access==='admin_only'?'Acesso exclusivo do administrador.':status.access==='not_integrated'?'Módulo visível; execução ainda não integrada para membros.':status.access==='off'?status.off_message :'Disponível para uso.'}</p>
-     <button type="button" className="mt-3 !border !border-[#5c4670] !bg-[#34273e] !px-3 !py-2 text-xs" onClick={()=>status.access==='no_credits'?window.open(rechargeBotUrl,'_blank','noopener,noreferrer'):move('module:'+id)}>{status.access='no_credits'?'💬 Recarregar pelo bot':status.access==='available'?'Abrir módulo':'Ver detalhes'}</button>
+     <button type="button" className="mt-3 !border !border-[#5c4670] !bg-[#34273e] !px-3 !py-2 text-xs" onClick={()=>status.access==='no_credits'?window.open(rechargeBotUrl,'_blank','noopener,noreferrer'):move('module:'+id)}>{status.access==='no_credits'?'💬 Recarregar pelo bot':status.access==='available'?'Abrir módulo':'Ver detalhes'}</button>
      
      </div>
     })}
