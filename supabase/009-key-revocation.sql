@@ -76,7 +76,7 @@ begin
  insert into public.mc_users(telegram_id,username,first_name,first_activation_at,promo_pro_until)
  values(p_telegram_id,left(coalesce(p_username,''),80),left(coalesce(p_first_name,''),100),v_now,
  case when v_now<'2026-11-21 00:00:00-03'::timestamptz then v_now+interval '7 days' else null end)
- on conflict(telegram_id) do update set username=excluded.username,first_name=excluded.first_name;
+ on conflict on constraint mc_users_pkey do update set username=excluded.username,first_name=excluded.first_name;
  perform 1 from public.mc_users u where u.telegram_id=p_telegram_id and u.enabled=true and u.key_generation_blocked=false for update;
  if not found then raise exception 'KEY_GENERATION_BLOCKED'; end if;
  update public.mc_login_keys k set revoked_at=v_now where k.telegram_id=p_telegram_id and k.revoked_at is null;
