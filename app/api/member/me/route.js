@@ -8,7 +8,7 @@ export async function GET(){
  const id=session?.id;
  if(!id)return NextResponse.json({error:'Não autenticado'},{status:401});
  try{
-  const rows=await db('mc_users?telegram_id=eq.'+id+'&select=telegram_id,username,first_name,credits,created_at,plan,promo_pro_until,enabled');
+  const rows=await db('mc_users?telegram_id=eq.'+id+'&select=telegram_id,username,first_name,credits,created_at,plan,promo_pro_until,enabled,photo_file_id');
   if(!rows?.length||rows[0].enabled===false)return NextResponse.json({error:'Conta não encontrada'},{status:404});
   const recharge=await db('mc_recharges?telegram_id=eq.'+id+'&select=id,credits_requested,status,created_at&order=created_at.desc&limit=20');
   return NextResponse.json({user:safeUser(rows[0]),recharges:recharge,bot:process.env.TELEGRAM_BOT_USERNAME||null,group:process.env.CENTRAL_GROUP_URL||null,support:'https://t.me/mandracke'},{headers:{'Cache-Control':'no-store'}});
