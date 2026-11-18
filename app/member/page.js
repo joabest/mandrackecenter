@@ -2,10 +2,10 @@
 import {useEffect,useState,useRef} from 'react';
 import {modules as moduleCatalog} from '../../lib/modules';
 import {iconForModule} from '../../lib/module-icons';
-import {LayoutDashboard,Users,Wallet,ReceiptText,History,MessageCircle,Settings,ChevronLeft,ChevronRight,Menu,Search,ArrowUpRight,ExternalLink,RefreshCw,LogOut,Shield,CheckCircle2,Clock3,ShieldCheck,Coins,PanelLeftClose,Pin,EllipsisVertical,UserCircle,ChevronDown,Boxes} from 'lucide-react';
+import {LayoutDashboard,Users,Wallet,ReceiptText,History,MessageCircle,Settings,ChevronLeft,ChevronRight,Menu,Search,ArrowUpRight,ExternalLink,RefreshCw,LogOut,Shield,CheckCircle2,Clock3,ShieldCheck,Coins,PanelLeftClose,Pin,EllipsisVertical,UserCircle,ChevronDown,Boxes,ShoppingBag} from 'lucide-react';
 
 const navigation=[
- {group:'GERAL',items:[{id:'dashboard',label:'Visão geral',icon:LayoutDashboard},{id:'modules',label:'Módulos',icon:Boxes},{id:'profile',label:'Minha conta',icon:Users}]},
+ {group:'GERAL',items:[{id:'dashboard',label:'Visão geral',icon:LayoutDashboard},{id:'modules',label:'Módulos',icon:Boxes},{id:'store',label:'Shopping / Store',icon:ShoppingBag},{id:'orders',label:'Meus pedidos',icon:ShoppingBag},{id:'profile',label:'Minha conta',icon:Users}]},
  {group:'FINANCEIRO',items:[{id:'credits',label:'Créditos e MC',icon:Wallet},{id:'recharges',label:'Solicitar recarga',icon:ReceiptText},{id:'history',label:'Histórico',icon:History}]},
  {group:'FERRAMENTAS',items:moduleCatalog.filter(m=>m.group==='Ferramentas').map(m=>({id:'module:'+m.id,label:m.name,icon:iconForModule(m.id)}))},
  {group:'CHECKERS LEGADOS',items:moduleCatalog.filter(m=>m.group==='Checkers legados').map(m=>({id:'module:'+m.id,label:m.name,icon:iconForModule(m.id)}))},
@@ -65,6 +65,7 @@ export default function Member(){
  }
  async function logout(){await fetch('/api/member/logout',{method:'POST'});location.replace('/login')}
  const move=id=>{
+  if(id==='store'||id==='orders'){location.assign('/member/store'+(id==='orders'?'?tab=orders':''));return;}
   if(id.startsWith('module:')){
    const moduleId=id.slice(7),module=moduleStatuses[moduleId];
    if(!module){setOffNotice({title:'Módulo indisponível',message:'Não foi possível verificar a permissão desta ferramenta.'});setMobile(false);return;}
