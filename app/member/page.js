@@ -1,10 +1,13 @@
 'use client';
 import {useEffect,useState,useRef} from 'react';
+import {modules as moduleCatalog} from '../../lib/modules';
 import {LayoutDashboard,Users,Wallet,ReceiptText,History,MessageCircle,Settings,ChevronLeft,ChevronRight,Menu,Search,ArrowUpRight,ExternalLink,RefreshCw,LogOut,Shield,CheckCircle2,Clock3,ShieldCheck,Coins,PanelLeftClose,Pin,EllipsisVertical,UserCircle,ChevronDown} from 'lucide-react';
 
 const navigation=[
  {group:'GERAL',items:[{id:'dashboard',label:'Visão geral',icon:LayoutDashboard},{id:'modules',label:'Módulos',icon:Settings},{id:'profile',label:'Minha conta',icon:Users}]},
  {group:'FINANCEIRO',items:[{id:'credits',label:'Créditos e MC',icon:Wallet},{id:'recharges',label:'Solicitar recarga',icon:ReceiptText},{id:'history',label:'Histórico',icon:History}]},
+ {group:'FERRAMENTAS',items:moduleCatalog.filter(m=>m.group==='Ferramentas').map(m=>({id:'module:'+m.id,label:m.name,icon:Settings}))},
+ {group:'CHECKERS LEGADOS',items:moduleCatalog.filter(m=>m.group==='Checkers legados').map(m=>({id:'module:'+m.id,label:m.name,icon:Shield}))},
  {group:'SISTEMA',items:[{id:'support',label:'Suporte',icon:MessageCircle}]}
 ];
 const money=n=>Number(n||0).toLocaleString('pt-BR');
@@ -22,7 +25,7 @@ export default function Member(){
  const [view,setView]=useState('dashboard'),[narrow,setNarrow]=useState(false),[mobile,setMobile]=useState(false);
  const [creditAmount,setCreditAmount]=useState('100'),[busy,setBusy]=useState(false),[notice,setNotice]=useState('');
  const [query,setQuery]=useState('');
- const [moduleStatuses,setModuleStatuses]=useState({}),[offNotice,setOffNotice]=useState(null);
+ const [moduleStatuses,setModuleStatuses]=useState({}),[offNotice,setOffNotice]=useState(null),[moduleLoading,setModuleLoading]=useState(true);
  const [navOrder,setNavOrder]=useState(Object.fromEntries(navigation.map(g=>[g.group,g.items.map(i=>i.id)])));
  const [navPins,setNavPins]=useState([]),[navMenu,setNavMenu]=useState(null);
  const prefsHydrated=useRef(false);
@@ -38,7 +41,7 @@ export default function Member(){
    }catch(e){console.warn('Preferências não disponíveis')}finally{prefsHydrated.current=true}
   }
   loadPreferences();refresh();
-  fetch('/api/modules',{cache:'no-store'}).then(r=>r.ok?r.json():null).then(d=>{if(d?.modules)setModuleStatuses(Object.fromEntries(d.modules.map(x=>[x.module_id,x]))) }).catch(()=>{});
+  fetch('/api/modules',{cache:'no-store'}).then(async r=>{if(!r.ok)throw Error('Módulos indisponíveis');return r.json()}).then(d=>{setModuleStatuses(Object.fromEntries((d.modules||[]).map(x=>[x.id,x]))) }).catch(()=>setError('Não foi possível carregar os módulos.')).finally(()=>setModuleLoading(false));
  },[]);
  useEffect(()=>{
   if(!prefsHydrated.current)return;
@@ -60,6 +63,18 @@ export default function Member(){
  }
  async function logout(){await fetch('/api/member/logout',{method:'POST'});location.replace('/login')}
  const move=id=>{
+  if(id.startsWith('module:')){
+   const moduleId=id.slice(7),module=moduleStatuses[moduleId];
+   if(!module){setOffNotice({title:'Módulo indisponível',message:'Não foi possível verificar a permissão desta ferramenta.'});setMobile(false);return;}
+   if(module.access==='available'&&data?.is_admin){location.assign('/panel?module='+encodeURIComponent(moduleId));return;}
+   const reasons={
+    off:module.off_message||'Esta função está temporariamente indisponível.',
+    no_credits:'Você pode conhecer todas as ferramentas, mas precisa ter créditos disponíveis para utilizá-las. Solicite uma recarga para liberar o acesso.',
+    admin_only:'Esta função é exclusiva do administrador.',
+    not_integrated:'Esta ferramenta ainda não possui execução liberada para membros. O catálogo é apenas informativo até a integração segura ser concluída.'
+   };
+   setOffNotice({title:module.name||moduleId,message:reasons[module.access]||'Acesso indisponível.'});setMobile(false);return;
+  }
   const moduleId={dashboard:'dashboard',profile:'profile',credits:'credits',recharges:'credits',history:'credits'}[id];
   if(moduleId&&moduleStatuses[moduleId]?.enabled===false){
    setOffNotice({title:moduleId==='credits'?'Créditos':id==='profile'?'Minha conta':'Dashboard',message:moduleStatuses[moduleId].off_message||'Esta função está temporariamente indisponível.'});
@@ -140,7 +155,7 @@ export default function Member(){
      <div className="flex flex-wrap items-end justify-between gap-4"><div><div className="mb-2 text-[11px] font-semibold uppercase tracking-[.19em] text-[#a480c8]">MANDRACKE / {view==='dashboard'?'Visão geral':view.toUpperCase()}</div><h1 className="!m-0 text-[28px] font-semibold tracking-tight text-[#f8f4fc] md:text-3xl">{view==='dashboard'?'Seu painel':navigation.flatMap(n=>n.items).find(n=>n.id===view)?.label}</h1><p className="mt-2 text-sm text-[#8f8899]">Bem-vindo, {u.first_name||u.username||'usuário'} · Conta vinculada ao Telegram</p></div><div className="flex items-center gap-2 rounded-full border border-[#3d3843] bg-[#1b1920] px-3 py-2 text-[11px] text-[#c2b9ca]"><span className="h-2 w-2 rounded-full bg-emerald-400"/>Conta ativa</div></div>
      {['dashboard','credits'].includes(view)&&<div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
        <Tile title="Créditos disponíveis" value={money(u.credits)} icon={Wallet} detail="Saldo consultado no Supabase"/>
-       <Tile title="Plano ativo" value={u.effective_plan} icon={ShieldCheck} detail={u.promo_pro_until&&new Date(u.promo_pro_until)>new Date()?'PRO promocional até '+time(u.promo_pro_until):'Definido pela administração'}/>
+       <Tile title="Plano ativo" value={u.effective_plan} icon={ShieldCheck} detail={u.promo_pro_until&&new Date(u.promo_pro_until)>new Date()&&Number(u.credits)>0?'PRO promocional até '+time(u.promo_pro_until):Number(u.credits)<=0?'Sem créditos: execução bloqueada':'Definido pela administração'}/>
        <Tile title="Saldo MC" value={isAdmin?money(u.mc_tokens):'—'} icon={Coins} detail={isAdmin?'1.500 MC renováveis a cada dia':'Disponível apenas para administração'}/>
        <Tile title="Solicitações" value={money((data.recharges||[]).length)} icon={ReceiptText} detail={(data.recharges||[]).filter(r=>r.status==='pending').length+' pendente(s)'}/>
      </div>}
@@ -152,14 +167,15 @@ export default function Member(){
      {view==='modules'&&<section className="overflow-hidden rounded-2xl border border-[#342c3a] bg-[#19161e]">
    <div className="flex flex-wrap items-center justify-between border-b border-[#322a37] p-6"><div><h2 className="text-[15px] font-semibold">Módulos da plataforma</h2><p className="mt-2 text-xs text-[#a79bac]">Todas as funções cadastradas são exibidas aqui. O status é controlado somente pela administração.</p></div>{isAdmin&&<a href="/admin/modules" className="mt-3 rounded-lg border border-[#684980] bg-[#34263e] px-4 py-2 text-xs text-[#e6cafa]">Gerenciar ON/OFF</a>}</div>
    <div className="grid grid-cols-1 gap-3 p-5 sm:grid-cols-2 lg:grid-cols-3">
-    {Object.entries(moduleStatuses).filter(([id])=>!['dashboard','profile','settings','credits','users','telegram'].includes(id)).map(([id,status])=>{
+    {Object.entries(moduleStatuses).map(([id,status])=>{
      const names={extractor:'Extrator',formatcc:'Formatar dados',formatlogin:'Formatar login',bin:'BIN Lookup',ip:'IP Locator',geradorbr:'Gerador BR',geradorgg:'Gerador GG',zeroauth:'ZEROAUTH',preauth:'PREAUTH',zeroauthv2:'ZEROAUTH V2',amazon:'Amazon BR',drogasil:'DrogaSil'};
      return <div key={id} className="rounded-xl border border-[#40334b] bg-[#231d2a] p-4"><div className="flex items-center justify-between gap-2"><span className="text-sm font-medium">{names[id]||id}</span><span className={'rounded px-2 py-1 text-[10px] '+(status.enabled?'bg-emerald-900/30 text-emerald-300':'bg-rose-900/40 text-rose-300')}>{status.enabled?'ON':'OFF'}</span></div>
-     <p className="mt-3 text-xs text-[#9e91ac]">{status.enabled?'Módulo listado na plataforma. A disponibilidade da ferramenta depende da integração de acesso.':status.off_message||'Função temporariamente indisponível.'}</p>
-     {isAdmin&&<a className="mt-3 inline-block text-xs text-[#c9a1ef]" href={'/panel?module='+encodeURIComponent(id)}>Abrir no painel original</a>}
+     <p className="mt-3 text-xs text-[#9e91ac]">{status.access==='no_credits'?'Visível para conhecer. Bloqueado por falta de créditos.':status.access==='admin_only'?'Acesso exclusivo do administrador.':status.access==='not_integrated'?'Módulo visível; execução ainda não integrada para membros.':status.access==='off'?status.off_message:'Disponível para administração.'}</p>
+     <button type="button" className="mt-3 !border !border-[#5c4670] !bg-[#34273e] !px-3 !py-2 text-xs" onClick={()=>move('module:'+id)}>{status.access==='no_credits'?'Ver requisitos':status.access==='available'?'Abrir módulo':'Ver detalhes'}</button>
+     
      </div>
     })}
-    {!Object.keys(moduleStatuses).length&&<p className="text-sm text-[#a69bac]">Consultando o catálogo de módulos...</p>}
+    {!Object.keys(moduleStatuses).length&&<p className="text-sm text-[#a69bac]">{moduleLoading?'Consultando o catálogo de módulos...':'Não foi possível carregar o catálogo.'}</p>}
    </div></section>}
      {view==='profile'&&<section className="max-w-3xl overflow-hidden rounded-2xl border border-[#342c3a] bg-[#19161e]"><div className="border-b border-[#332c3a] p-6"><h2 className="text-[15px] font-semibold">Identificação da conta</h2><p className="mt-1 text-xs text-[#8e8795]">Informações fornecidas pelo Telegram e pelo sistema.</p></div><div className="divide-y divide-[#302a36]">{[['Nome',u.first_name||'Não informado'],['Usuário Telegram','@'+(u.username||'não cadastrado')],['Telegram ID',u.telegram_id],['Origem de acesso',data.source],['Plano',u.effective_plan],['Sessão','Autenticado']].map(([k,v])=><div key={k} className="flex items-center justify-between gap-5 px-6 py-4 text-sm"><span className="text-[#968d9e]">{k}</span><span className="text-right font-medium">{v}</span></div>)}</div></section>}
      {view==='credits'&&<section className="max-w-3xl rounded-2xl border border-[#342c3a] bg-[#19161e] p-6"><h2 className="text-[15px] font-semibold">Informações sobre créditos</h2><p className="mt-3 text-sm leading-6 text-[#a69eaf]">Créditos são unidades internas do serviço. Alterações de saldo dependem das regras e aprovações administrativas. {isAdmin?'Os 1.000 créditos e 1.500 MC do administrador são renovados na primeira consulta após a meia-noite de Brasília.':''}</p><button className="mt-5 !bg-[#493458] !px-4 !py-2 text-xs" onClick={()=>move('recharges')}>Solicitar recarga</button></section>}
