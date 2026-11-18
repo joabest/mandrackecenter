@@ -30,6 +30,7 @@ export async function POST(req){
   try{await db('mc_usage_events',{method:'POST',body:{telegram_id:user.id,event_type:'member_login'},prefer:'return=minimal'})}catch{}
   const response=NextResponse.json({ok:true,source:'telegram_webapp',redirect:'/member'});
   response.cookies.set('mandracke_member',cookie,{httpOnly:true,secure:process.env.NODE_ENV==='production',sameSite:'lax',path:'/',maxAge:28800});
+  response.cookies.set('mandracke_source','telegram_webapp',{httpOnly:true,secure:process.env.NODE_ENV==='production',sameSite:'lax',path:'/',maxAge:28800});
   return response;
  }catch(e){
   console.warn('Telegram WebApp auth rejected',String(e).slice(0,80));
