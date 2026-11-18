@@ -12,17 +12,75 @@ const adminMenu=()=>({inline_keyboard:[
  [{text:'📊 Resumo administrativo',callback_data:'admin_summary'},{text:'👥 Usuários',callback_data:'admin_users'}],
  [{text:'💳 Créditos dos usuários',callback_data:'admin_credits'},{text:'💳 Recargas pendentes',callback_data:'admin_recharges'}],
  [{text:'🔧 Manutenção',callback_data:'admin_maintenance'},{text:'📨 Mensagens',callback_data:'admin_inbox'}],
- [{text:'📣 Avisos',callback_data:'admin_announcements'}],
+ [{text:'📣 Avisos',callback_data:'admin_announcements'},{text:'🔐 Gerenciar Keys',callback_data:'admin_keys'}],
  [{text:'⚙️ Módulos ON / OFF',url:'https://mandracke.vercel.app/admin/modules'}],
  [{text:'📈 Central web',url:'https://mandracke.vercel.app/admin/central'}],
  [{text:'🌐 Abrir painel administrativo',url:'https://mandracke.vercel.app/login?admin=1'}],
  [{text:'⬅️ Menu principal',callback_data:'menu'}]
 ]});
+
+async function botKeys(chatId,owner,admin=false){
+ const rows=await db('mc_login_keys?telegram_id=eq.'+owner+'&select=id,created_at,revoked_at&order=created_at.desc&limit=20');
+ const active=rows.filter(k=>!k.revoked_at);
+ const buttons=active.map(k=>[{text:'🔑 '+k.id.slice(0,8)+' · '+new Date(k.created_at).toLocaleDateString('pt-BR'),callback_data:(admin?'admin_key_':'my_key_')+k.id}]);
+ if(active.length)buttons.push([{text:'🗑 Destruir todas ('+active.length+')',callback_data:(admin?'admin_keys_all_':'my_keys_all_')+owner}]);
+ buttons.push([{text:'⬅️ Voltar',callback_data:admin?'admin_keys':'menu'}]);
+ return chat(chatId,(admin?'🛡 KEYS DO USUÁRIO '+owner:'🔑 MINHAS KEYS')+'\n\nAtivas: '+active.length+'\nRevogadas: '+rows.filter(x=>x.revoked_at).length+'\n\nSelecione uma key para revogar. A operação é definitiva.',{reply_markup:{inline_keyboard:buttons}});
+}
+async function revokeBotKeys(chatId,ids,owner,actor){
+ const result=await db('rpc/mc_revoke_keys',{method:'POST',body:{p_ids:ids,p_owner:owner,p_actor:actor,p_reason:'Revogada no Telegram'}});
+ const count=Array.isArray(result)?result.length:0;
+ await chat(chatId,'✅ '+count+' key(s) revogada(s). Sessões antigas foram invalidadas. Para voltar a entrar no site, gere uma nova key no bot.');
+ if(actor.startsWith('admin:')&&String(owner)!==String(chatId)&&count){
+  try{await chat(owner,'🔒 Sua key foi revogada pelo administrador. Se a emissão estiver liberada, gere outra key no bot com /key.')}catch(e){console.warn('Key notice could not be sent')}
+ }
+ return;
+}
+
 async function adminAction(action,chatId,id){
  if(!isAdmin(id)){await chat(chatId,'⛔ Acesso restrito ao administrador.');return}
  if(action==='admin'){
   return chat(chatId,'🛡 ADMINISTRADOR — MANDRACKE CENTER\n\nAcesso reconhecido pelo seu Telegram ID. Seu plano e créditos como usuário não são alterados por este reconhecimento.\n\nEscolha abaixo:',{reply_markup:adminMenu()});
  }
+
+ if(action==='admin_keys'){
+  const users=await db('mc_users?select=telegram_id,first_name,username&order=created_at.desc&limit=30');
+  const btn=users.map(u=>[{text:'👤 '+(u.first_name||u.username||u.telegram_id).slice(0,18)+' · '+u.telegram_id,callback_data:'admin_keys_user_'+u.telegram_id}]);
+  btn.push([{text:'⚠️ Destruir TODAS as keys do sistema',callback_data:'admin_keys_global_confirm'}]);
+  btn.push([{text:'⬅️ Admin',callback_data:'admin'}]);
+  return chat(chatId,'🔐 KEYS — ADMIN\n\nEscolha um usuário ou use a opção global. Para pesquisar qualquer Telegram ID, envie /keysusuario 123456789.',{reply_markup:{inline_keyboard:btn}});
+ }
+ const ownerMatch=/^admin_keys_user_(\d{1,20})$/.exec(action);
+ if(ownerMatch)return botKeys(chatId,ownerMatch[1],true);
+ const confirmSingle=/^admin_key_([0-9a-f-]{36})$/i.exec(action);
+ if(confirmSingle){
+  const rows=await db('mc_login_keys?id=eq.'+confirmSingle[1]+'&select=id,telegram_id,revoked_at');
+  if(!rows.length||rows[0].revoked_at)return chat(chatId,'Key não encontrada ou já revogada.');
+  const k=rows[0];
+  return chat(chatId,'⚠️ CONFIRMAR DESTRUIÇÃO\n\nKey '+k.id.slice(0,8)+' do usuário '+k.telegram_id+' será inutilizada permanentemente.',{reply_markup:{inline_keyboard:[[{text:'✅ Destruir key',callback_data:'admin_key_yes_'+k.id}],[{text:'❌ Cancelar',callback_data:'admin_keys_user_'+k.telegram_id}]]}});
+ }
+ const applySingle=/^admin_key_yes_([0-9a-f-]{36})$/i.exec(action);
+ if(applySingle){
+  const rows=await db('mc_login_keys?id=eq.'+applySingle[1]+'&select=telegram_id');
+  if(!rows.length)return chat(chatId,'Key não encontrada.');
+  return revokeBotKeys(chatId,[applySingle[1]],String(rows[0].telegram_id),'admin:'+id);
+ }
+ const allConfirm=/^admin_keys_all_(\d{1,20})$/.exec(action);
+ if(allConfirm)return chat(chatId,'⚠️ CONFIRMAR\n\nDestruir todas as keys do usuário '+allConfirm[1]+'? Esta ação encerra sessões.',{reply_markup:{inline_keyboard:[[{text:'✅ Confirmar destruição',callback_data:'admin_keys_all_yes_'+allConfirm[1]}],[{text:'❌ Cancelar',callback_data:'admin_keys_user_'+allConfirm[1]}]]}});
+ const allYes=/^admin_keys_all_yes_(\d{1,20})$/.exec(action);
+ if(allYes){
+  const n=await db('rpc/mc_revoke_all_keys',{method:'POST',body:{p_owner:allYes[1],p_actor:'admin:'+id,p_reason:'Revogação total pelo administrador no Telegram'}});
+  await chat(chatId,'✅ '+n+' key(s) destruída(s) do usuário '+allYes[1]+'.');
+  try{await chat(allYes[1],'🔒 Todas as suas keys foram revogadas pelo administrador. Use /key para solicitar outra, se permitido.')}catch(e){}
+  return;
+ }
+ if(action==='admin_keys_global_confirm')return chat(chatId,'⛔ ATENÇÃO: ESTA AÇÃO REVOKARÁ TODAS AS KEYS DE TODOS OS USUÁRIOS, INCLUSIVE AS SUAS. Confirme novamente.',{reply_markup:{inline_keyboard:[[{text:'⚠️ Continuar',callback_data:'admin_keys_global_confirm2'}],[{text:'❌ Cancelar',callback_data:'admin_keys'}]]}});
+ if(action==='admin_keys_global_confirm2')return chat(chatId,'Confirmação FINAL: todas as keys serão inutilizadas e todas as sessões encerradas.',{reply_markup:{inline_keyboard:[[{text:'🗑 DESTRUIR TODAS',callback_data:'admin_keys_global_yes'}],[{text:'❌ Cancelar',callback_data:'admin_keys'}]]}});
+ if(action==='admin_keys_global_yes'){
+  const n=await db('rpc/mc_revoke_all_keys',{method:'POST',body:{p_owner:null,p_actor:'admin:'+id,p_reason:'Revogação global pelo Telegram'}});
+  return chat(chatId,'✅ Revogação global concluída. '+n+' keys invalidadas. Usuários deverão gerar novas keys.');
+ }
+
  if(action==='admin_summary'){
   const [users,recharges]=await Promise.all([
    db('mc_users?select=telegram_id,plan,promo_pro_until'),
@@ -142,6 +200,7 @@ async function subscribe(id,enabled){
 }
 const menu=[
  [{text:'🔑 Gerar Key',callback_data:'key'},{text:'👤 Minha Conta',callback_data:'account'}],
+ [{text:'🗝 Minhas Keys',callback_data:'my_keys'}],
  [{text:'💳 Créditos',callback_data:'credits'},{text:'📊 Limites',callback_data:'limits'}],
  [{text:'🟢 Status',callback_data:'status'},{text:'📖 Ajuda',callback_data:'help'}],
  [{text:'📜 Histórico',callback_data:'history'},{text:'➕ Recarga',callback_data:'recharge'}],
@@ -291,7 +350,26 @@ async function disconnect(chatId,id){
  await db('rpc/mc_disconnect_sessions',{method:'POST',body:{p_telegram_id:id}});
  await chat(chatId,'🛡 DISPOSITIVOS DESCONECTADOS\n\nAs sessões anteriores do painel foram invalidadas. Sua key permanente continua válida e pode ser usada para entrar novamente.',{reply_markup:await keyboard(id)});
 }
+
+async function myKeysAction(action,chatId,id){
+ if(action==='my_keys')return botKeys(chatId,id,false);
+ const one=/^my_key_([0-9a-f-]{36})$/i.exec(action);
+ if(one){
+  const rows=await db('mc_login_keys?id=eq.'+one[1]+'&telegram_id=eq.'+id+'&revoked_at=is.null&select=id');
+  if(!rows.length)return chat(chatId,'Key não encontrada ou revogada.');
+  return chat(chatId,'⚠️ Confirmar destruição da key '+one[1].slice(0,8)+'? Sua sessão no site será encerrada.',{reply_markup:{inline_keyboard:[[{text:'✅ Destruir',callback_data:'my_key_yes_'+one[1]}],[{text:'❌ Cancelar',callback_data:'my_keys'}]]}});
+ }
+ const yes=/^my_key_yes_([0-9a-f-]{36})$/i.exec(action);
+ if(yes)return revokeBotKeys(chatId,[yes[1]],id,'telegram:'+id);
+ if(action==='my_keys_all_'+id)return chat(chatId,'⚠️ Destruir TODAS as suas keys? Você precisará gerar outra no bot.',{reply_markup:{inline_keyboard:[[{text:'✅ Destruir todas',callback_data:'my_keys_all_yes_'+id}],[{text:'❌ Cancelar',callback_data:'my_keys'}]]}});
+ if(action==='my_keys_all_yes_'+id){
+  const n=await db('rpc/mc_revoke_all_keys',{method:'POST',body:{p_owner:id,p_actor:'telegram:'+id,p_reason:'Revogação total pelo titular no Telegram'}});
+  return chat(chatId,'✅ '+n+' key(s) revogada(s). Use /key para emitir uma nova.');
+ }
+}
+
 async function mainAction(action,chatId,id,from){
+ if(action==='my_keys'||action.startsWith('my_key_')||action.startsWith('my_keys_'))return myKeysAction(action,chatId,id);
  if(action==='admin'||action.startsWith('admin_'))return adminAction(action,chatId,id);
  switch(action){
   case 'menu':return intro(chatId,from?.first_name);
@@ -325,7 +403,7 @@ async function mainAction(action,chatId,id,from){
 }
 function asAction(text){
  const cmd=tidyCommand(text);
- return ({'/start':'start','/menu':'menu','/key':'key','/gerarkey':'key','/conta':'account','/creditos':'credits','/limites':'limits','/historico':'history','/recarga':'recharge','/grupo':'group','/suporte':'support','/nome':'name','/foto':'photo','/dispositivos':'disconnect','/help':'help','/ajuda':'help','/status':'status','/id':'telegram_id','/admin':'admin','/gerenciarcreditos':'admin_credits','/pendentes':'admin_recharges','/mensagens':'admin_inbox','/manutencao':'admin_maintenance','/avisos':'admin_announcements'})[cmd]||null;
+ return ({'/start':'start','/menu':'menu','/key':'key','/gerarkey':'key','/conta':'account','/creditos':'credits','/limites':'limits','/historico':'history','/recarga':'recharge','/grupo':'group','/suporte':'support','/nome':'name','/foto':'photo','/dispositivos':'disconnect','/help':'help','/ajuda':'help','/status':'status','/id':'telegram_id','/m inhaskeys':'my_keys','/minhaskeys':'my_keys','/keys':'my_keys','/admin':'admin','/gerenciarcreditos':'admin_credits','/pendentes':'admin_recharges','/mensagens':'admin_inbox','/manutencao':'admin_maintenance','/avisos':'admin_announcements'})[cmd]||null;
 }
 export async function POST(req){
  const secret=process.env.TELEGRAM_WEBHOOK_SECRET;
