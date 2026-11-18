@@ -305,7 +305,7 @@ document.getElementById('binSearch').oninput=e=>renderBins(e.target.value);
 .menu-item.dragging{opacity:.45;outline:1px dashed #b994ff}
 .menu-item.drag-target{border-top:2px solid #ca9bff!important}
 .menu-pin,.menu-shift{position:absolute;top:50%;transform:translateY(-50%);font:inherit;font-size:13px;color:#8e7ea9;padding:4px 5px;z-index:4;border:0;background:transparent;border-radius:7px;cursor:pointer}
-.menu-pin{right:8px}.menu-pin.is-pinned{color:#eec37c}.menu-shift[data-dir="up"]{right:55px}.menu-shift[data-dir="down"]{right:31px}
+.menu-pin{right:8px}.menu-pin.is-pinned{color:#b79bea}.menu-shift[data-dir="up"]{right:55px}.menu-shift[data-dir="down"]{right:31px}
 .menu-pin:hover,.menu-shift:hover{color:#edddff;background:#463260}
 .favorite-title{display:flex;gap:8px;align-items:center;margin:16px 6px 7px;color:#cdb5f9;font-size:10px;font-weight:900;letter-spacing:1.3px}
 #desktopMenu>.navlabel,#mobileMenu>.navlabel{clear:both}
@@ -335,7 +335,7 @@ document.getElementById('binSearch').oninput=e=>renderBins(e.target.value);
    const id=btn.dataset.page;if(!id)return;
    for(const old of btn.querySelectorAll('.menu-pin,.menu-shift'))old.remove();
    for(const dir of ['up','down']){const b=document.createElement('span');b.className='menu-shift';b.dataset.dir=dir;b.setAttribute('role','button');b.setAttribute('tabindex','0');b.setAttribute('aria-label',dir==='up'?'Mover para cima':'Mover para baixo');b.textContent=dir==='up'?'↑':'↓';b.onclick=e=>{e.stopPropagation();e.preventDefault();shift(id,dir==='up'?-1:1)};b.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();e.stopPropagation();b.click()}};btn.appendChild(b)}
-   const pin=document.createElement('span');pin.className='menu-pin'+(state.pins.includes(id)?' is-pinned':'');pin.setAttribute('role','button');pin.setAttribute('tabindex','0');pin.setAttribute('aria-label',state.pins.includes(id)?'Desafixar favorito':'Fixar favorito');pin.textContent=state.pins.includes(id)?'★':'☆';
+   const pin=document.createElement('span');pin.className='menu-pin'+(state.pins.includes(id)?' is-pinned':'');pin.setAttribute('role','button');pin.setAttribute('tabindex','0');pin.setAttribute('aria-label',state.pins.includes(id)?'Desafixar módulo':'Fixar módulo');pin.setAttribute('title',state.pins.includes(id)?'Desafixar módulo':'Fixar módulo');pin.textContent='⋮';
    pin.onclick=e=>{e.stopPropagation();e.preventDefault();state.pins=state.pins.includes(id)?state.pins.filter(x=>x!==id):[...state.pins,id];save();render()};
    pin.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();e.stopPropagation();pin.click()}};btn.appendChild(pin);
  }
@@ -344,7 +344,7 @@ document.getElementById('binSearch').oninput=e=>renderBins(e.target.value);
  function render(){
    const active=document.querySelector('.menu-item.active')?.dataset.page||'dashboard';
    desktop.replaceChildren();
-   if(state.pins.length){const fav=document.createElement('div');fav.className='favorite-title';fav.textContent='★ FIXADOS';desktop.appendChild(fav);
+   if(state.pins.length){const fav=document.createElement('div');fav.className='favorite-title';fav.textContent='FIXADOS';desktop.appendChild(fav);
      for(const id of state.pins){const src=byId.get(id);if(!src)continue;const cloned=src.cloneNode(true);cloned.classList.add('favorite-item');desktop.appendChild(cloned);controls(cloned)}
    }
    for(const g of groups){desktop.appendChild(g.heading);g.items=normalize(g);state.order[g.key]=g.items.map(x=>x.dataset.page);
