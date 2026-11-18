@@ -4,7 +4,8 @@ import {verifyMember} from '../../../../lib/member-session';
 import {db,safeUser} from '../../../../lib/members';
 export const runtime='nodejs';
 export async function GET(){
- const id=await verifyMember((await cookies()).get('mandracke_member')?.value,process.env.SESSION_SECRET);
+ const session=await verifyMember((await cookies()).get('mandracke_member')?.value,process.env.SESSION_SECRET);
+ const id=session?.id;
  if(!id)return NextResponse.json({error:'Não autenticado'},{status:401});
  try{
   const rows=await db('mc_users?telegram_id=eq.'+id+'&select=telegram_id,username,first_name,credits,created_at,plan,promo_pro_until,enabled');
