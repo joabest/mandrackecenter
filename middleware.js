@@ -1,12 +1,34 @@
 import {NextResponse} from 'next/server';
 import {validSession} from './lib/auth';
 import {verifyMember} from './lib/member-session';
+
+async function verifiedTelegramAdmin(req,secret){
+ const session=await verifyMember(req.cookies.get('mandracke_member')?.value,secret);
+ if(!session)return {session:null,memberOK:false,telegramAdmin:false};
+ const url=process.env.SUPABASE_URL,token=process.env.SUPABASE_SERVICE_ROLE_KEY;
+ if(!url||!token)return {session,memberOK:false,telegramAdmin:false};
+ try{
+  const headers={apikey:token,...(!token.startsWith('sb_secret_')?{Authorization:'Bearer '+token}:{})};
+  const res=await fetch(url.replace(/\/$/,'')+'/rest/v1/mc_users?telegram_id=eq.'+session.id+'&select=session_version,enabled',{headers,cache:'no-store'});
+  if(!res.ok)return {session,memberOK:false,telegramAdmin:false};
+  const rows=await res.json();
+  const memberOK=rows.length===1&&rows[0].enabled===true&&Number(rows[0].session_version)===session.version;
+  // Never trust a username, URL parameter, or unverified Telegram ID for administrator access.
+  const telegramAdmin=memberOK&&Boolean(process.env.ADMIN_TELEGRAM_ID)&&session.id===process.env.ADMIN_TELEGRAM_ID;
+  return {session,memberOK,telegramAdmin};
+ }catch(e){console.error('Member authorization check failed');return {session,memberOK:false,telegramAdmin:false}}
+}
+
 export async function middleware(req){
  const path=req.nextUrl.pathname;
  if(path==='/api/login'||path==='/api/public-config'||path==='/api/telegram/webhook'||path==='/api/member/telegram-auth'||path==='/api/member/browser-ticket'||path==='/manifest.webmanifest'||path==='/mandracke-icon.svg'||path==='/favicon.ico'||path.startsWith('/_next/'))return NextResponse.next();
+
  const secret=process.env.SESSION_SECRET;
- const admin=await validSession(req.cookies.get('mandracke_session')?.value,secret);
+ const passwordAdmin=await validSession(req.cookies.get('mandracke_session')?.value,secret);
  if(path==='/maintenance'||path==='/telegram'||path==='/entrar')return NextResponse.next();
+ const {session,memberOK,telegramAdmin}=passwordAdmin?{session:null,memberOK:false,telegramAdmin:false}:await verifiedTelegramAdmin(req,secret);
+ const admin=passwordAdmin||telegramAdmin;
+ 
  if(!admin && !(path==='/login'&&req.nextUrl.searchParams.get('admin')==='1')){
   try{
    const api=process.env.SUPABASE_URL,token=process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -21,26 +43,11 @@ export async function middleware(req){
      }
     }
    }
-  }catch(e){console.error('Maintenance check unavailable')}
+  }catch(e){console.error('Maintenance status unavailable')}
  }
-
  if(admin)return NextResponse.next();
  if(path==='/login'||path==='/api/member/login')return NextResponse.next();
- const session=await verifyMember(req.cookies.get('mandracke_member')?.value,secret);
- const isMemberRoute=path==='/member'||path.startsWith('/api/member/')||path==='/api/modules'||path==='/api/ui/preferences';
- let memberOK=false;
- if(session){
-  try{
-   const token=process.env.SUPABASE_SERVICE_ROLE_KEY;
-   const url=process.env.SUPABASE_URL;
-   if(token&&url){
-    const headers={apikey:token,...(!token.startsWith('sb_secret_')?{Authorization:'Bearer '+token}:{})};
-    const response=await fetch(url.replace(/\/$/,'')+'/rest/v1/mc_users?telegram_id=eq.'+session.id+'&select=session_version,enabled',{headers,cache:'no-store'});
-    if(response.ok){const rows=await response.json();memberOK=rows.length===1&&rows[0].enabled===true&&Number(rows[0].session_version)===session.version}
-   }
-  }catch{}
- }
- if(memberOK&&isMemberRoute)return NextResponse.next();
+ if(memberOK&&(path==='/member'||path.startsWith('/api/member/')||path==='/api/modules'||path==='/api/ui/preferences'))return NextResponse.next();
  if(path.startsWith('/api/'))return NextResponse.json({error:'Não autorizado'},{status:401});
  return NextResponse.redirect(new URL(memberOK?'/member':'/login',req.url));
 }
