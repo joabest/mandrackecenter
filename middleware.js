@@ -3,10 +3,29 @@ import {validSession} from './lib/auth';
 import {verifyMember} from './lib/member-session';
 export async function middleware(req){
  const path=req.nextUrl.pathname;
- if(path==='/login'||path==='/api/login'||path==='/api/member/login'||path==='/api/public-config'||path==='/api/telegram/webhook'||path==='/manifest.webmanifest'||path==='/mandracke-icon.svg'||path==='/favicon.ico'||path.startsWith('/_next/'))return NextResponse.next();
+ if(path==='/api/login'||path==='/api/public-config'||path==='/api/telegram/webhook'||path==='/manifest.webmanifest'||path==='/mandracke-icon.svg'||path==='/favicon.ico'||path.startsWith('/_next/'))return NextResponse.next();
  const secret=process.env.SESSION_SECRET;
  const admin=await validSession(req.cookies.get('mandracke_session')?.value,secret);
+ if(path==='/maintenance')return NextResponse.next();
+ if(!admin && !(path==='/login'&&req.nextUrl.searchParams.get('admin')==='1')){
+  try{
+   const api=process.env.SUPABASE_URL,token=process.env.SUPABASE_SERVICE_ROLE_KEY;
+   if(api&&token){
+    const headers={apikey:token,...(!token.startsWith('sb_secret_')?{Authorization:'Bearer '+token}:{})};
+    const response=await fetch(api.replace(/\\/$/,'')+'/rest/v1/mc_settings?key=eq.maintenance&select=value',{headers,cache:'no-store'});
+    if(response.ok){
+     const rows=await response.json();
+     if(rows[0]?.value?.enabled===true){
+      if(path.startsWith('/api/'))return NextResponse.json({error:'Sistema em manutenção'},{status:503,headers:{'Retry-After':'300'}});
+      return NextResponse.rewrite(new URL('/maintenance',req.url),{status:503});
+     }
+    }
+   }
+  }catch(e){console.error('Maintenance check unavailable')}
+ }
+
  if(admin)return NextResponse.next();
+ if(path==='/login'||path==='/api/member/login')return NextResponse.next();
  const session=await verifyMember(req.cookies.get('mandracke_member')?.value,secret);
  const isMemberRoute=path==='/member'||path.startsWith('/api/member/');
  let memberOK=false;
