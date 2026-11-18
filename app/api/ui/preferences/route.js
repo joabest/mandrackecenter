@@ -32,7 +32,9 @@ export async function PUT(req){
   for(const value of Object.values(preferences)){
    if(!value||typeof value!=='object'||Array.isArray(value))return err('Preferência inválida',400);
   }
-  await db('mc_ui_preferences',{method:'POST',body:{account_id:id,preferences,updated_at:new Date().toISOString()},prefer:'resolution=merge-duplicates,return=minimal'});
+  const previous=await db('mc_ui_preferences?account_id=eq.'+encodeURIComponent(id)+'&select=preferences');
+  const merged={...(previous[0]?.preferences||{}),...preferences};
+  await db('mc_ui_preferences',{method:'POST',body:{account_id:id,preferences:merged,updated_at:new Date().toISOString()},prefer:'resolution=merge-duplicates,return=minimal'});
   return NextResponse.json({ok:true});
  }catch(e){console.error('UI preferences PUT',String(e));return err('Falha ao salvar preferências',503)}
 }
