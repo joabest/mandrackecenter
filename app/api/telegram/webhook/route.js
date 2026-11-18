@@ -93,7 +93,16 @@ async function telegram(method,body){
  if(!r.ok||!x.ok)throw Error('Telegram API '+method+': '+String(x.description||r.status));
  return x.result;
 }
-const chat=(chat_id,text,options={})=>telegram('sendMessage',{chat_id,text,disable_web_page_preview:true,...options});
+const esc=v=>String(v??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+function pretty(text){
+ const lines=esc(text).split('\n');
+ if(lines[0]&&lines[0].length<100&&/^(?:[^\w]*[A-ZÀ-Ú][A-ZÀ-Ú0-9\s—–:\/\-]{3,}|[^\w]*MANDRACKE)/u.test(lines[0]))lines[0]='<b>'+lines[0]+'</b>';
+ return lines.map((line,i)=>{
+  if(i===0)return line;
+  return line.replace(/^(\s*(?:Nome|Telegram|ID|Plano|Créditos|MC|Saldo atual|Situação|Status|Estado|Usuários|Recargas pendentes|Limites|Login|Fonte|Sua key permanente|Key|Créditos disponíveis|PRO promocionais ativos))(\s*:)/i,'<b>$1$2</b>');
+ }).join('\n');
+}
+const chat=(chat_id,text,options={})=>telegram('sendMessage',{chat_id,text:options.parse_mode==='HTML'?text:pretty(text),parse_mode:'HTML',disable_web_page_preview:true,...options});
 async function externalLoginUrl(id){
  const ticket=randomBytes(32).toString('base64url');
  await db('mc_browser_tickets',{method:'POST',body:{telegram_id:id,ticket_hash:hashKey(ticket),expires_at:new Date(Date.now()+3*60*1000).toISOString()},prefer:'return=minimal'});
@@ -125,19 +134,20 @@ async function issueKey(chatId,telegramId,from){
  }});
  const expiry=Array.isArray(out)?out[0]?.promo_pro_until:null;
  const promo=expiry&&new Date(expiry)>new Date();
- const when=promo?'\n🎁 PRO promocional até '+new Date(expiry).toLocaleString('pt-BR',{timeZone:'America/Sao_Paulo'})+'.':'';
- await chat(chatId,
- '🔑 MANDRACKE CENTER — SUA KEY\n\n'+
- 'Sua key permanente:\n'+key+'\n\n'+
- '🌐 Toque no link para entrar no site com autenticação temporária.\n'+
- 'Se abrir no navegador externo, entre com a key em: '+LOGIN+'\n\n'+
- 'A key permanece válida até você solicitar outra ou o administrador revogá-la.'+
- when+'\n\n⚠️ Não compartilhe sua key. Solicitar outra substitui a anterior.',
- {reply_markup:{inline_keyboard:[
- [{text:'🌐 Abrir site pelo navegador',url:await externalLoginUrl(telegramId)}],
- [{text:'👤 Minha Conta',callback_data:'account'},{text:'⬅️ Menu',callback_data:'menu'}]
- ]}}
- );
+ const when=promo?'\n\n🎁 <b>PRO promocional ativo até:</b> '+esc(new Date(expiry).toLocaleString('pt-BR',{timeZone:'America/Sao_Paulo'})):'';
+ let link=LOGIN;
+ try{link=await externalLoginUrl(telegramId)}catch(e){console.warn('Secure browser link unavailable',String(e))}
+ const html='🔑 <b>MANDRACKE CENTER — SUA KEY</b>\n\n'+
+ 'Sua <b>key permanente</b> de acesso:\n\n<code>'+esc(key)+'</code>\n\n'+
+ '👆 Toque na key acima para selecioná-la ou use <b>Copiar Key</b>.\n\n'+
+ '🌐 <b>Entrar no site:</b> '+esc(LOGIN)+'\n'+
+ 'O botão de acesso rápido utiliza um link temporário, válido por 3 minutos e apenas uma vez.'+
+ when+'\n\n⚠️ <b>Importante:</b> não compartilhe a key. Uma nova key substitui a anterior.';
+ await chat(chatId,html,{parse_mode:'HTML',reply_markup:{inline_keyboard:[
+  [{text:'📋 Copiar Key',copy_text:{text:key}}],
+  [{text:'🌐 Abrir site no navegador',url:link}],
+  [{text:'👤 Minha Conta',callback_data:'account'},{text:'⬅️ Menu',callback_data:'menu'}]
+ ]}});
 }
 async function account(chatId,id){
  const u=await getUser(id);
