@@ -7,10 +7,22 @@ export async function middleware(req){
  const secret=process.env.SESSION_SECRET;
  const admin=await validSession(req.cookies.get('mandracke_session')?.value,secret);
  if(admin)return NextResponse.next();
- const id=await verifyMember(req.cookies.get('mandracke_member')?.value,secret);
+ const session=await verifyMember(req.cookies.get('mandracke_member')?.value,secret);
  const isMemberRoute=path==='/member'||path.startsWith('/api/member/');
- if(id&&isMemberRoute)return NextResponse.next();
+ let memberOK=false;
+ if(session){
+  try{
+   const token=process.env.SUPABASE_SERVICE_ROLE_KEY;
+   const url=process.env.SUPABASE_URL;
+   if(token&&url){
+    const headers={apikey:token,...(!token.startsWith('sb_secret_')?{Authorization:'Bearer '+token}:{})};
+    const response=await fetch(url.replace(/\/$/,'')+'/rest/v1/mc_users?telegram_id=eq.'+session.id+'&select=session_version,enabled',{headers,cache:'no-store'});
+    if(response.ok){const rows=await response.json();memberOK=rows.length===1&&rows[0].enabled===true&&Number(rows[0].session_version)===session.version}
+   }
+  }catch{}
+ }
+ if(memberOK&&isMemberRoute)return NextResponse.next();
  if(path.startsWith('/api/'))return NextResponse.json({error:'Não autorizado'},{status:401});
- return NextResponse.redirect(new URL(id?'/member':'/login',req.url));
+ return NextResponse.redirect(new URL(memberOK?'/member':'/login',req.url));
 }
 export const config={matcher:['/((?!_next/static|_next/image).*)']};
