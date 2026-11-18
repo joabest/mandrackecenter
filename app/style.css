@@ -17,3 +17,29 @@
 .member-list{display:grid;gap:10px}
 .member-request{display:flex;justify-content:space-between;gap:10px;padding:10px;border-bottom:1px solid #30263c;font-size:13px}
 @media(max-width:580px){.member-shell{margin:20px auto}.member-grid{grid-template-columns:1fr}.member-form{display:grid}.member-top{flex-wrap:wrap}}
+
+.central-wrap{max-width:1320px;margin:28px auto;padding:20px;color:#f5ecff}
+.central-head{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:20px;margin-bottom:24px}
+.central-head h1{margin:6px 0 4px;font-size:29px}
+.central-head p{color:#a79ab8}
+.central-link{color:#cbafff;text-decoration:none;border:1px solid #513869;padding:11px;border-radius:10px}
+.central-counts{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:17px}
+.central-box{background:#171121;border:1px solid #38294c;padding:21px;border-radius:16px;min-width:0}
+.central-number{font-size:29px;display:block;color:#c4a2ff;margin:8px 0}
+.central-muted{color:#a69ab8;font-size:12px;margin-top:5px}
+.central-cols{display:grid;grid-template-columns:1fr 1fr;gap:17px;margin-bottom:17px}
+.central-cols h2{margin:0 0 13px;font-size:20px}
+.central-cols h3{font-size:15px;margin:22px 0 10px}
+.central-cols p{line-height:1.5;color:#aea2c2}
+.central-cols label{display:block;margin:13px 0 7px;font-weight:700}
+.central-cols textarea{width:100%;box-sizing:border-box;color:#eee1ff;background:#0d0b15;border:1px solid #584070;border-radius:12px;padding:12px;font-family:inherit;resize:vertical}
+.central-actions{display:flex;flex-wrap:wrap;gap:9px;margin:12px 0;align-items:center}
+.central-actions button{border:1px solid #8259ad;background:#452868;color:#fff;border-radius:10px;padding:11px 14px;cursor:pointer}
+.central-actions button:hover{background:#5c367e}
+.central-actions button:disabled{opacity:.5;cursor:default}
+.central-entry{padding:12px 0;border-bottom:1px solid #3b304c;font-size:13px}
+.central-state{padding:9px 0;color:#c2ace1}
+.central-error{background:#461c35;padding:15px;border-radius:10px;margin:12px 0}
+.central-info{background:#261b38;color:#cab2ef;padding:12px;border-radius:10px;margin:12px 0}
+@media(max-width:1050px){.central-counts{grid-template-columns:repeat(2,minmax(0,1fr))}.central-cols{grid-template-columns:1fr}}
+@media(max-width:500px){.central-counts{grid-template-columns:1fr}.central-wrap{padding:12px}.central-head h1{font-size:23px}}
