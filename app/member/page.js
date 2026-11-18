@@ -22,6 +22,7 @@ export default function Member(){
  const [view,setView]=useState('dashboard'),[narrow,setNarrow]=useState(false),[mobile,setMobile]=useState(false);
  const [creditAmount,setCreditAmount]=useState('100'),[busy,setBusy]=useState(false),[notice,setNotice]=useState('');
  const [query,setQuery]=useState('');
+ const [moduleStatuses,setModuleStatuses]=useState({}),[offNotice,setOffNotice]=useState(null);
  const [navOrder,setNavOrder]=useState(Object.fromEntries(navigation.map(g=>[g.group,g.items.map(i=>i.id)])));
  const [navPins,setNavPins]=useState([]),[navMenu,setNavMenu]=useState(null);
  const prefsHydrated=useRef(false);
@@ -37,6 +38,7 @@ export default function Member(){
    }catch(e){console.warn('Preferências não disponíveis')}finally{prefsHydrated.current=true}
   }
   loadPreferences();refresh();
+  fetch('/api/modules',{cache:'no-store'}).then(r=>r.ok?r.json():null).then(d=>{if(d?.modules)setModuleStatuses(Object.fromEntries(d.modules.map(x=>[x.module_id,x]))) }).catch(()=>{});
  },[]);
  useEffect(()=>{
   if(!prefsHydrated.current)return;
@@ -57,7 +59,14 @@ export default function Member(){
   }catch(e){setNotice(e.message)}finally{setBusy(false)}
  }
  async function logout(){await fetch('/api/member/logout',{method:'POST'});location.replace('/login')}
- const move=id=>{setView(id);setMobile(false);setNotice('')};
+ const move=id=>{
+  const moduleId={dashboard:'dashboard',profile:'profile',credits:'credits',recharges:'credits',history:'credits'}[id];
+  if(moduleId&&moduleStatuses[moduleId]?.enabled===false){
+   setOffNotice({title:moduleId==='credits'?'Créditos':id==='profile'?'Minha conta':'Dashboard',message:moduleStatuses[moduleId].off_message||'Esta função está temporariamente indisponível.'});
+   setMobile(false);return;
+  }
+  setView(id);setMobile(false);setNotice('');
+ };
  const toggle=()=>setNarrow(n=>!n);
  const u=data?.user||{},isAdmin=Boolean(data?.is_admin);
  const rows=(data?.recharges||[]).filter(r=>!query||String(r.credits_requested).includes(query)||(label[r.status]||r.status).toLowerCase().includes(query.toLowerCase()));
@@ -144,5 +153,14 @@ export default function Member(){
     </div>
    </main>
   </div>
+  {offNotice&&<div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/85 p-5 backdrop-blur-sm" role="presentation" onClick={()=>setOffNotice(null)}>
+   <section role="dialog" aria-modal="true" aria-labelledby="module-off-title" className="w-full max-w-md rounded-[22px] border border-[#705087] bg-[#191322] p-7 shadow-[0_30px_90px_#000c]" onClick={e=>e.stopPropagation()}>
+    <div className="mb-5 grid h-12 w-12 place-items-center rounded-xl border border-[#674b7c] bg-[#332342] text-2xl text-[#d5b3ee]">⏻</div>
+    <div className="text-[11px] font-bold uppercase tracking-[.2em] text-[#b995da]">MANDRACKE CENTER</div>
+    <h2 id="module-off-title" className="mb-3 mt-2 text-2xl font-semibold">{offNotice.title} — OFF</h2>
+    <p className="text-sm leading-6 text-[#c1b2cc]">{offNotice.message}</p>
+    <button onClick={()=>setOffNotice(null)} className="mt-6 w-full !bg-[#684784]">Entendido</button>
+   </section>
+  </div>}
  </div>;
 }
