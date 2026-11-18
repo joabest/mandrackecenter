@@ -43,7 +43,7 @@ if(process.env.VERCEL_ENV!=='production'){
     const result=await c.json();
     console.log(result.ok?'Telegram: commands registered':'Telegram: command registration failed');
     const adminId=process.env.ADMIN_TELEGRAM_ID;
-    if(adminId&&/^\\d+$/.test(adminId)){
+    if(adminId&&/^\d+$/.test(adminId)){
      const adminCommands=[
       ...commands,
       {command:'admin',description:'Abrir administração'},
