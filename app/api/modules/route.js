@@ -2,11 +2,10 @@ import {NextResponse} from 'next/server';
 import {cookies} from 'next/headers';
 import {verifyMember} from '../../../lib/member-session';
 import {modules} from '../../../lib/modules';
+import {moduleAccess} from '../../../lib/access-policy.mjs';
 import {db} from '../../../lib/members';
 
 export const runtime='nodejs';
-const adminModules=new Set(['users','telegram','settings']);
-const catalogueOnly=new Set(['zeroauth','preauth','zeroauthv2','amazon','drogasil','formatcc']);
 
 export async function GET(){
  const session=await verifyMember((await cookies()).get('mandracke_member')?.value,process.env.SESSION_SECRET);
@@ -24,12 +23,7 @@ export async function GET(){
   const result=modules.map(m=>{
    const flag=byId.get(m.id);
    const enabled=flag?.enabled===true;
-   let access='available';
-   if(!enabled)access='off';
-   else if(!admin&&adminModules.has(m.id))access='admin_only';
-   else if(!admin&&balance<=0)access='no_credits';
-   else if(!admin&&catalogueOnly.has(m.id))access='not_integrated';
-   else if(!admin)access='not_integrated';
+   const access=moduleAccess({moduleId:m.id,enabled,credits:balance,isAdmin:admin});
    return {...m,enabled,off_message:flag?.off_message||'Esta função está temporariamente indisponível.',access};
   });
   return NextResponse.json({modules:result,credits:balance,is_admin:admin},{headers:{'Cache-Control':'private, no-store'}});
