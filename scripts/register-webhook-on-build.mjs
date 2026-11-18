@@ -1,6 +1,6 @@
 const token=process.env.TELEGRAM_BOT_TOKEN;
 const secret=process.env.TELEGRAM_WEBHOOK_SECRET;
-const url='https://painel-beige-tau.vercel.app/api/telegram/webhook';
+const url='https://mandracke.vercel.app/api/telegram/webhook';
 if(process.env.VERCEL_ENV!=='production'){
  console.log('Telegram webhook: skipped (not production)');
 }else if(!token||!secret||secret.length<16){
