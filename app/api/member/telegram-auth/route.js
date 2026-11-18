@@ -28,7 +28,7 @@ export async function POST(req){
   await db('rpc/mc_refresh_admin_allowance',{method:'POST',body:{p_telegram_id:user.id}});
   const cookie=await userCookie(user.id);
   try{await db('mc_usage_events',{method:'POST',body:{telegram_id:user.id,event_type:'member_login'},prefer:'return=minimal'})}catch{}
-  const response=NextResponse.json({ok:true,source:'telegram_webapp',redirect:'/member'});
+  const response=NextResponse.json({ok:true,source:'telegram_webapp',redirect:String(user.id)===process.env.ADMIN_TELEGRAM_ID?'/admin/dashboard':'/member'});
   response.cookies.set('mandracke_member',cookie,{httpOnly:true,secure:process.env.NODE_ENV==='production',sameSite:'lax',path:'/',maxAge:28800});
   response.cookies.set('mandracke_source','telegram_webapp',{httpOnly:true,secure:process.env.NODE_ENV==='production',sameSite:'lax',path:'/',maxAge:28800});
   return response;
